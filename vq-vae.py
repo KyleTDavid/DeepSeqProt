@@ -24,8 +24,8 @@ trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, b
 
 #encoder
 in_channels = 20
-e_arch = [128, 2]
-e_depth = [6, 1]
+e_arch = [32, 2]
+e_depth = [3, 1]
 
 #vector quantizer        
 num_embeddings = 12
@@ -34,8 +34,8 @@ commitment_cost = 0.25
 decay = 0.99
 
 #decoder
-d_arch = [2, 128]
-d_depth = [1, 6]
+d_arch = [2, 32]
+d_depth = [1, 3]
 
 #dynamic sampling to ensure one 1 datum per channel at quantizer
 batch_size = 32
