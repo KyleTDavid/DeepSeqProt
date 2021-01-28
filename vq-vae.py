@@ -12,6 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 from scipy.interpolate import interp1d
 from math import ceil
 from functools import partial
+import matplotlib.pyplot as plt
 
 ##parameters##
 
@@ -405,7 +406,6 @@ final_embeddings = embeddings_list[-1]
 final_embeddings['Count'] = test_embeddings['Encoding'].value_counts()
 final_embeddings['Encoding'] = final_embeddings.index
 
-import matplotlib.pyplot as plt
 plt.scatter(final_embeddings[0], final_embeddings[1], s=final_embeddings['Count'], alpha=0.5)
 
 for i, txt in enumerate(final_embeddings['Encoding']):
