@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
-!pip install biopython
 from Bio import SeqIO
 from torch.utils.data import Dataset, DataLoader
 from scipy.interpolate import interp1d
@@ -42,12 +41,9 @@ batch_size = 32
 learning_rate = 1e-3
 num_training_updates = 3000
 
-#variance (this might be wrong)
-data_var = np.mean([torch.var(toad['seq']) for toad in frog])
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-input_file = "saccharomycetales_proteomes.fa"
+input_file = "saccharomyces_cerevisiae_proteome.fa"
 output_file = "test"
 
 log = open(output_file + "_log.txt", "w")
@@ -294,6 +290,10 @@ class model(nn.Module):
 
 #load data and specify model
 data = fasta_data(input_file)
+
+#variance (this might be wrong)
+data_var = np.mean([torch.var(batch['seq']) for batch in data])
+
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 sampling = ceil(data.avgseqlen**(1/len(e_arch))) - 1 #dynamic sampling
