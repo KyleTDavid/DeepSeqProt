@@ -423,7 +423,7 @@ for e in embeddings_list:
   plt.savefig(out_directory + "/learnings/fig"+str(i)+".png")
   i+=100
   
-  os.mkdir(out_directory + "/clusters")
+os.mkdir(out_directory + "/clusters")
 
 for e in np.unique(test_embeddings["Encoding"].tolist()):
     input_seq_iterator = SeqIO.parse(input_file, "fasta")
