@@ -44,7 +44,8 @@ num_training_updates = 3000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-input_file = "saccharomycetales_proteomes.fa"
+test_file = "saccharomycetales_proteomes.fa"
+train_file = "non_singleton_fams.fa"
 output_file = "test"
 
 log = open(output_file + "_log.txt", "w")
@@ -290,10 +291,10 @@ class model(nn.Module):
         return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings #encoded is redundant can be removed
 
 #load data and specify model
-data = fasta_data(input_file)
+data = fasta_data(test_file)
 
-#variance (this might be wrong)
-data_var = np.mean([torch.var(batch['seq']) for batch in data])
+#variance
+data_var = 5.7028e-07 #hardcoded for now because I'm impatient
 
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
@@ -401,7 +402,7 @@ model_file = output_file + ".pt"
 out_directory = output_file + "_output"
 os.mkdir(out_directory)
 
-test_embeddings = gen_embed("non_singleton_fams.fa", model_file)
+test_embeddings = gen_embed(train_file, model_file)
 final_embeddings = embeddings_list[-1]
 final_embeddings['Count'] = test_embeddings['Encoding'].value_counts()
 final_embeddings['Encoding'] = final_embeddings.index
@@ -426,7 +427,7 @@ for e in embeddings_list:
 os.mkdir(out_directory + "/clusters")
 
 for e in np.unique(test_embeddings["Encoding"].tolist()):
-    input_seq_iterator = SeqIO.parse(input_file, "fasta")
+    input_seq_iterator = SeqIO.parse(train_file, "fasta")
     encoding = test_embeddings[test_embeddings["Encoding"] == e]["ID"].tolist()
     subfasta = [record for record in input_seq_iterator if record.id in encoding]
     SeqIO.write(subfasta, out_directory + "/clusters/subfasta" + str(e) + ".fa", "fasta")
