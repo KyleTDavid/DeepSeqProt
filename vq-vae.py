@@ -420,7 +420,7 @@ for e in embeddings_list:
   
   plt.scatter(e[0], e[1])
 
-  plt.savefig("/content/" + out_directory + "/learnings/fig"+str(i)+".png")
+  plt.savefig(out_directory + "/learnings/fig"+str(i)+".png")
   i+=100
   
   os.mkdir(out_directory + "/clusters")
@@ -429,4 +429,4 @@ for e in np.unique(test_embeddings["Encoding"].tolist()):
     input_seq_iterator = SeqIO.parse(input_file, "fasta")
     encoding = test_embeddings[test_embeddings["Encoding"] == e]["ID"].tolist()
     subfasta = [record for record in input_seq_iterator if record.id in encoding]
-    SeqIO.write(subfasta, "/content/" + out_directory + "/clusters/subfasta" + str(e) + ".fa", "fasta")
+    SeqIO.write(subfasta, out_directory + "/clusters/subfasta" + str(e) + ".fa", "fasta")
