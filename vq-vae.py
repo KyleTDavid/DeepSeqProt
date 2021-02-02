@@ -24,17 +24,17 @@ trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, b
 
 #encoder
 in_channels = 20
-e_arch = [32, 2]
+e_arch = [8, 2]
 e_depth = [3, 1]
 
 #vector quantizer        
-num_embeddings = 12
+num_embeddings = 16
 embedding_dim = 2
 commitment_cost = 0.25
 decay = 0.99
 
 #decoder
-d_arch = [2, 32]
+d_arch = [2, 8]
 d_depth = [1, 3]
 
 #dynamic sampling to ensure one 1 datum per channel at quantizer
@@ -425,9 +425,33 @@ for e in embeddings_list:
   i+=100
   
 os.mkdir(out_directory + "/clusters")
-
+os.mkdir(out_directory + "/GOs")
 for e in np.unique(test_embeddings["Encoding"].tolist()):
     input_seq_iterator = SeqIO.parse(train_file, "fasta")
     encoding = test_embeddings[test_embeddings["Encoding"] == e]["ID"].tolist()
+    entry = [f.split('|')[1] for f in encoding]
+    with open(out_directory + "/GOs/GO" + str(e) + ".txt", "w+") as f:
+      for g in entry:
+        f.write('%s\n' % g)
     subfasta = [record for record in input_seq_iterator if record.id in encoding]
     SeqIO.write(subfasta, out_directory + "/clusters/subfasta" + str(e) + ".fa", "fasta")
+    
+#plot stacked bar of target protein families
+
+encode = test_embeddings.drop(['x', 'y'], axis=1)
+encode['ID'] = [f.split('|')[1] for f in encode['ID']]
+
+sf = pd.read_csv('Scerevisiae_target_fams.txt', sep='\t', header=None)
+sf.columns = ['ID', 'Name']
+sf_encode = encode.merge(sf)
+
+def frequency_table(x):
+    return pd.crosstab(index=x,  columns="count")
+ctabs = {}
+for column in sf_encode:
+    ctabs[column]=frequency_table(sf_encode[column])
+
+sf_encode_table = sf_encode.groupby(['Encoding', 'Name'])['Encoding'].count().unstack('Name').fillna(0)
+plot = sf_encode_table.plot.bar(stacked=True)
+fig = plot.get_figure()
+fig.savefig(out_directory + '/target_families.png')

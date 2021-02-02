@@ -1,0 +1,178 @@
+Q3E7Y5	Helicase family, Yeast subtelomeric Y' repeat subfamily
+Q99208	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P53257	Mitochondrial carrier (TC 2.A.29) family
+P39549	DUP/COS family
+P38087	Mitochondrial carrier (TC 2.A.29) family
+Q04013	Mitochondrial carrier (TC 2.A.29) family
+P43617	Mitochondrial carrier (TC 2.A.29) family
+P0CX22	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P40105	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P43562	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+O13559	Helicase family, Yeast subtelomeric Y' repeat subfamily
+Q12251	Mitochondrial carrier (TC 2.A.29) family
+P43637	Protein kinase superfamily, Ser/Thr protein kinase family
+O13556	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P0CX17	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P53819	Helicase family, Yeast subtelomeric Y' repeat subfamily
+Q08993	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P25354	DUP/COS family
+D6VPM8	DUP/COS family
+P33303	Mitochondrial carrier (TC 2.A.29) family
+P39953	Mitochondrial carrier (TC 2.A.29) family
+Q04162	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P39932	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q03099	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P39547	DUP/COS family
+Q08217	Protein kinase superfamily, Ser/Thr protein kinase family
+P38152	Mitochondrial carrier (TC 2.A.29) family
+Q03785	Protein kinase superfamily, Ser/Thr protein kinase family
+P47116	Protein kinase superfamily, Ser/Thr protein kinase family
+P32331	Mitochondrial carrier (TC 2.A.29) family
+Q08995	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P43538	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P0CX14	Helicase family, Yeast subtelomeric Y' repeat subfamily
+Q03533	Protein kinase superfamily, Ser/Thr protein kinase family
+P53142	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q3E7Y4	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P39548	DUP/COS family
+Q12222	Protein kinase superfamily, Ser/Thr protein kinase family
+P0CX20	Helicase family, Yeast subtelomeric Y' repeat subfamily
+Q08994	Helicase family, Yeast subtelomeric Y' repeat subfamily
+Q12407	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P40889	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P10870	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q12100	Protein kinase superfamily, Ser/Thr protein kinase family
+P39551	DUP/COS family
+Q12152	Protein kinase superfamily, Ser/Thr protein kinase family
+Q07888	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P0CX21	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P35994	SRP1/TIP1 family, Seripauperin subfamily
+Q99297	Mitochondrial carrier (TC 2.A.29) family
+P53427	SRP1/TIP1 family, Seripauperin subfamily
+P0CE93	SRP1/TIP1 family, Seripauperin subfamily
+P53343	SRP1/TIP1 family, Seripauperin subfamily
+Q3E770	SRP1/TIP1 family, Seripauperin subfamily
+P25610	SRP1/TIP1 family, Seripauperin subfamily
+P54854	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P53320	Mitochondrial carrier (TC 2.A.29) family
+P31374	Protein kinase superfamily, Ser/Thr protein kinase family
+P40556	Mitochondrial carrier (TC 2.A.29) family
+P22219	Protein kinase superfamily, Ser/Thr protein kinase family
+P38727	DUP/COS family
+P0CX15	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P0CX16	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P36002	Protein kinase superfamily, Ser/Thr protein kinase family
+P38142	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q3E7X8	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P40434	Helicase family, Yeast subtelomeric Y' repeat subfamily
+P47187	DUP/COS family
+P39004	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P53631	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P23585	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q06143	Mitochondrial carrier (TC 2.A.29) family
+P0CE90	SRP1/TIP1 family, Seripauperin subfamily
+P40886	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P10566	Mitochondrial carrier (TC 2.A.29) family
+P43581	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P0CD99	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P39552	DUP/COS family
+P38725	SRP1/TIP1 family, Seripauperin subfamily
+Q03829	Mitochondrial carrier (TC 2.A.29) family
+P22211	Protein kinase superfamily, Ser/Thr protein kinase family
+Q07987	SRP1/TIP1 family, Seripauperin subfamily
+P38988	Mitochondrial carrier (TC 2.A.29) family
+P0CE00	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P39924	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P42833	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P25346	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P38156	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P40885	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P23641	Mitochondrial carrier (TC 2.A.29) family
+P47185	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q06098	Protein kinase superfamily, Ser/Thr protein kinase family
+P39003	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P0CE91	SRP1/TIP1 family, Seripauperin subfamily
+P53174	DUP/COS family
+P23500	Mitochondrial carrier (TC 2.A.29) family
+P0CE85	SRP1/TIP1 family, Seripauperin subfamily
+Q03028	Mitochondrial carrier (TC 2.A.29) family
+P38155	SRP1/TIP1 family, Seripauperin subfamily
+P32332	Mitochondrial carrier (TC 2.A.29) family
+Q12300	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q12375	Mitochondrial carrier (TC 2.A.29) family
+Q12370	SRP1/TIP1 family, Seripauperin subfamily
+P0CE87	SRP1/TIP1 family, Seripauperin subfamily
+P43575	SRP1/TIP1 family, Seripauperin subfamily
+P0CE86	SRP1/TIP1 family, Seripauperin subfamily
+P25297	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P36003	Protein kinase superfamily, Ser/Thr protein kinase family
+P0CE89	SRP1/TIP1 family, Seripauperin subfamily
+P39545	SRP1/TIP1 family, Seripauperin subfamily
+P40585	SRP1/TIP1 family, Seripauperin subfamily
+P53176	DUP/COS family
+P38921	Mitochondrial carrier (TC 2.A.29) family
+Q03306	Protein kinase superfamily, Ser/Thr protein kinase family
+P38127	Mitochondrial carrier (TC 2.A.29) family
+P43565	Protein kinase superfamily, Ser/Thr protein kinase family
+Q08322	SRP1/TIP1 family, Seripauperin subfamily
+P0CE92	SRP1/TIP1 family, Seripauperin subfamily
+Q12505	Protein kinase superfamily, Ser/Thr protein kinase family
+Q12310	Protein kinase superfamily, Ser/Thr protein kinase family
+Q03656	Protein kinase superfamily, Ser/Thr protein kinase family
+Q03050	SRP1/TIP1 family, Seripauperin subfamily
+P38080	Protein kinase superfamily, Ser/Thr protein kinase family
+P04710	Mitochondrial carrier (TC 2.A.29) family
+P18239	Mitochondrial carrier (TC 2.A.29) family
+P32581	Protein kinase superfamily, Ser/Thr protein kinase family
+P54862	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P30605	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P32801	Protein kinase superfamily, Ser/Thr protein kinase family
+P47042	Protein kinase superfamily, Ser/Thr protein kinase family
+P22209	Protein kinase superfamily, Ser/Thr protein kinase family
+Q06497	Mitochondrial carrier (TC 2.A.29) family
+P53974	Protein kinase superfamily, Ser/Thr protein kinase family
+Q12003	Protein kinase superfamily, Ser/Thr protein kinase family
+P27636	Protein kinase superfamily, Ser/Thr protein kinase family
+P32328	Protein kinase superfamily, Ser/Thr protein kinase family
+P53233	Protein kinase superfamily, Ser/Thr protein kinase family
+P32467	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P30606	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P25333	Protein kinase superfamily, Ser/Thr protein kinase family
+P32465	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q12482	Mitochondrial carrier (TC 2.A.29) family
+P53048	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P40464	Mitochondrial carrier (TC 2.A.29) family
+P21965	Protein kinase superfamily, Ser/Thr protein kinase family
+P54199	Protein kinase superfamily, Ser/Thr protein kinase family
+P32466	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q01919	Protein kinase superfamily, Ser/Thr protein kinase family
+P36005	Protein kinase superfamily, Ser/Thr protein kinase family
+P32361	Protein kinase superfamily, Ser/Thr protein kinase family
+P38692	Protein kinase superfamily, Ser/Thr protein kinase family
+Q03002	Protein kinase superfamily, Ser/Thr protein kinase family
+Q08732	Protein kinase superfamily, Ser/Thr protein kinase family
+P13181	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P38702	Mitochondrial carrier (TC 2.A.29) family
+P36035	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+P22204	Protein kinase superfamily, Ser/Thr protein kinase family
+P38695	Major facilitator superfamily, Sugar transporter (TC 2.A.1.1) family
+Q07788	DUP/COS family
+P0CX12	DUP/COS family
+P38728	DUP/COS family
+D6W196	Mitochondrial carrier (TC 2.A.29) family
+P36034	DUP/COS family
+P18238	Mitochondrial carrier (TC 2.A.29) family
+P53344	DUP/COS family
+P53053	DUP/COS family
+P52924	DUP/COS family
+P53822	DUP/COS family
+P0CX13	DUP/COS family
+Q12289	Mitochondrial carrier (TC 2.A.29) family
+P38723	DUP/COS family
+P43542	DUP/COS family
+P32612	SRP1/TIP1 family, Seripauperin subfamily
+P38622	Protein kinase superfamily, Ser/Thr protein kinase family
+P40494	Protein kinase superfamily, Ser/Thr protein kinase family
+P0CE88	SRP1/TIP1 family, Seripauperin subfamily
+P40035	Mitochondrial carrier (TC 2.A.29) family
+P38990	Protein kinase superfamily, Ser/Thr protein kinase family
