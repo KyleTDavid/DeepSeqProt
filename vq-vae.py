@@ -44,8 +44,8 @@ num_training_updates = 3000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-test_file = "saccharomycetales_proteomes.fa"
-train_file = "non_singleton_fams.fa"
+test_file = "saccharomyces_cerevisiae_proteome.fa"
+train_file = "saccharomycetales_proteomes.fa"
 output_file = "test"
 
 log = open(output_file + "_log.txt", "w")
