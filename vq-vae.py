@@ -305,7 +305,10 @@ vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
               embedding_dim, commitment_cost, decay, trans, d_arch,
               d_depth, sampling)
 
-print("Let's use", torch.cuda.device_count(), "GPUs!")
+log = open(output_file + "_log.txt", "a")
+log.write("Let's use", torch.cuda.device_count(), "GPUs!")
+log.close()
+
 if torch.cuda.device_count() > 1:
   vae = nn.DataParallel(vae)
 
