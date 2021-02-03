@@ -291,7 +291,7 @@ class model(nn.Module):
         return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings #encoded is redundant can be removed
 
 #load data and specify model
-data = fasta_data(test_file)
+data = fasta_data(train_file)
 
 #variance
 data_var = 0.03214827 #average variance per sequence? hardcoded for now because I'm impatient
@@ -407,7 +407,7 @@ model_file = output_file + ".pt"
 out_directory = output_file + "_output"
 os.mkdir(out_directory)
 
-test_embeddings = gen_embed(train_file, model_file)
+test_embeddings = gen_embed(test_file, model_file)
 final_embeddings = embeddings_list[-1]
 final_embeddings['Count'] = test_embeddings['Encoding'].value_counts()
 final_embeddings['Encoding'] = final_embeddings.index
@@ -432,7 +432,7 @@ for e in embeddings_list:
 os.mkdir(out_directory + "/clusters")
 os.mkdir(out_directory + "/GOs")
 for e in np.unique(test_embeddings["Encoding"].tolist()):
-    input_seq_iterator = SeqIO.parse(train_file, "fasta")
+    input_seq_iterator = SeqIO.parse(test_file, "fasta")
     encoding = test_embeddings[test_embeddings["Encoding"] == e]["ID"].tolist()
     entry = [f.split('|')[1] for f in encoding]
     with open(out_directory + "/GOs/GO" + str(e) + ".txt", "w+") as f:
