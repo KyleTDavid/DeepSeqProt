@@ -306,7 +306,7 @@ vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
               d_depth, sampling)
 
 log = open(output_file + "_log.txt", "a")
-log.write("Let's use", torch.cuda.device_count(), "GPUs!")
+log.write("Let's use" + torch.cuda.device_count() + "GPUs!")
 log.close()
 
 if torch.cuda.device_count() > 1:
