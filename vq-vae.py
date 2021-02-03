@@ -305,11 +305,11 @@ vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
               embedding_dim, commitment_cost, decay, trans, d_arch,
               d_depth, sampling)
 
+print("Let's use", torch.cuda.device_count(), "GPUs!")
 if torch.cuda.device_count() > 1:
-  print("Let's use", torch.cuda.device_count(), "GPUs!")
   vae = nn.DataParallel(vae)
 
-model.to(device)
+vae.to(device)
 
 optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, amsgrad=False)
 
