@@ -49,7 +49,7 @@ train_file = "saccharomycetales_proteomes.fa"
 output_file = "test"
 
 log = open(output_file + "_log.txt", "w")
-log.write(device + "\n\n")
+log.write(str(device) + "\n\n")
 log.write("PARAMETERS\n\n")
 log.write("Basic Block\n")
 log.write("kernel size = " + str(kernel_size) + "\n")
