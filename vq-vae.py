@@ -17,36 +17,40 @@ import matplotlib.pyplot as plt
 ##parameters##
 
 #basic blocks
-kernel_size = 3
+kernel_size = 1
 dilation = 1
 conv = partial(resnet.conv_auto, kernel_size=kernel_size, dilation=dilation, bias=False)
 trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, bias=False)
 
 #encoder
 in_channels = 20
-e_arch = [8, 2]
-e_depth = [3, 1]
+e_arch = [8,8,8]
+e_depth = [1,1]
 
 #vector quantizer        
-num_embeddings = 16
-embedding_dim = 2
+num_embeddings = 64
+#embedding_dim = 8
 commitment_cost = 0.25
-decay = 0.99
+decay = 0.999
 
 #decoder
-d_arch = [2, 8]
-d_depth = [1, 3]
+d_arch = [8,8,8]
+d_depth = [1,1,1]
 
 #dynamic sampling to ensure one 1 datum per channel at quantizer
 batch_size = 32
 learning_rate = 1e-3
-num_training_updates = 3000
+num_training_updates = 10000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 test_file = "saccharomyces_cerevisiae_proteome.fa"
 train_file = "saccharomycetales_proteomes.fa"
-output_file = "test"
+output_suffix = "test3b"
+
+out_directory = output_suffix + "_output"
+os.mkdir(out_directory)
+output_file = out_directory + "/" + output_suffix
 
 log = open(output_file + "_log.txt", "w")
 log.write(str(device) + "\n\n")
@@ -59,7 +63,7 @@ log.write("encoder architecture = " + str(e_arch) + "\n")
 log.write("encoder depths = " + str(e_depth) + "\n\n")
 log.write("Vector Quantizer\n")
 log.write("number of embeddings = " + str(num_embeddings) + "\n")
-log.write("embedding dimenstions = " + str(embedding_dim) + "\n")
+#log.write("embedding dimenstions = " + str(embedding_dim) + "\n")
 log.write("commitment cost = " + str(commitment_cost) + "\n")
 log.write("decay = " + str(decay) + "\n\n")
 log.write("Decoder\n")
@@ -104,9 +108,10 @@ def seq_inter(array, length):
 
 #dataset for fasta files
 class fasta_data(Dataset):
-  def __init__(self, fasta_file):
+  def __init__(self, fasta_file, length=0):
     #read fasta file and (don't) sort by length
     self.fasta_file = list(SeqIO.parse(fasta_file, "fasta"))
+    self.length = length
     '''self.fasta_file.sort(key=lambda r: len(r))'''
     #get average sequence length for variance estimation and interpolation
     seq_lengths = [len(i) for i in self.fasta_file]
@@ -118,7 +123,10 @@ class fasta_data(Dataset):
     if torch.is_tensor(idx):
       idx = idx.tolist()
     ids = self.fasta_file[idx].id
-    seqs = seq_inter(one_hot_seq(self.fasta_file[idx].seq), int(self.avgseqlen))
+    l = self.length
+    if l == 0:
+      l = int(self.avgseqlen)
+    seqs = seq_inter(one_hot_seq(self.fasta_file[idx].seq), l)
     sample = {'id':ids, 'seq':seqs}
     return sample
 
@@ -141,21 +149,23 @@ class encoder(nn.Module):
         
         self.in_out_block_sizes = list(zip(block_arch, block_arch[1:]))
         self.blocks = nn.ModuleList([ 
-            resnet.layer(block_arch[0], block_arch[0], n=deepths[0], 
+            resnet.layer(in_channels, block_arch[0], n=deepths[0], 
                         block=block, conv=conv, *args, **kwargs),
             *[resnet.layer(in_channels * block.expansion, 
                           out_channels, n=n, conv=conv,
                           block=block, *args, **kwargs) 
-            for (in_channels, out_channels), n in zip(self.in_out_block_sizes, deepths[1:-1])],
-            resnet.layer(block_arch[-2], block_arch[-1], n=deepths[-1], 
-                        block=block, conv=conv, sampling=515)       
+            for (in_channels, out_channels), n in zip(self.in_out_block_sizes, deepths[1:])],   
         ])
-        
+
+        self.linit = nn.Linear(int(data.avgseqlen), 1)
         
     def forward(self, x):
-        x = self.gate(x)
-        for i, block in enumerate(self.blocks) :
+        #x = self.gate(x)
+        for i, block in enumerate(self.blocks) :            
             x = block(x)
+            #print("encode")
+            #print(x.shape)
+        x = self.linit(x)
         return x
 
 #vector quantizer
@@ -233,30 +243,35 @@ class decoder(nn.Module):
 
         self.block_arch = block_arch
         
-        self.linit = nn.Linear(1, 2)
+        self.linit = nn.Linear(1, int(data.avgseqlen))
 
-        self.in_out_block_sizes = list(zip(block_arch[1:], block_arch[2:]))
-
+        self.in_out_block_sizes = list(zip(block_arch, block_arch[1:]))
         self.blocks = nn.ModuleList([ 
-            resnet.layer(block_arch[0], block_arch[1], n=deepths[0], 
-                        block=block, conv=conv, sampling=82),
+            resnet.layer(block_arch[0], block_arch[0], n=deepths[0], 
+                        block=block, conv=conv, *args, **kwargs),
             *[resnet.layer(in_channels * block.expansion, 
                           out_channels, n=n, conv=conv,
                           block=block, *args, **kwargs) 
-            for (in_channels, out_channels), n in zip(self.in_out_block_sizes, deepths[1:])]       
+            for (in_channels, out_channels), n in zip(self.in_out_block_sizes, deepths[1:])],
         ])
         
         self.gate = nn.Sequential(
-            nn.Conv1d(embedding_dim, 20, kernel_size=3, stride=2, padding=1, bias=False), 
-            nn.BatchNorm1d(20),
+            nn.Conv1d(block_arch[-1], 20, kernel_size=1, stride=1, padding=0, bias=False), 
+            #nn.BatchNorm1d(20),1
             nn.ReLU(),
             #nn.MaxPool1d(kernel_size=3, stride=2, padding=1),
-            nn.Linear(1, int(data.avgseqlen))
+            #nn.Linear(1, int(data.avgseqlen))
         )
         
     def forward(self, x):
-        #x = self.linit(x)
+        #print(x.shape)
+        x = self.linit(x)
+        for i, block in enumerate(self.blocks) :
+            x = block(x)
+            #print("decode")
+            #print(x.shape)
         x = self.gate(x)
+        #print(x.shape)
         return x
 
 #model
@@ -299,19 +314,17 @@ data_var = 0.03214827 #average variance per sequence? hardcoded for now because 
 
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
-sampling = ceil(data.avgseqlen**(1/len(e_arch))) - 1 #dynamic sampling
-#sampling = 1
+#sampling = ceil(data.avgseqlen**(1/len(e_arch))) - 1 #dynamic sampling
+sampling = 1
+embedding_dim = e_arch[-1] 
 
 vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
               embedding_dim, commitment_cost, decay, trans, d_arch,
               d_depth, sampling)
 
-log = open(output_file + "_log.txt", "a")
-log.write("Let's use " + str(torch.cuda.device_count()) + " GPUs!" + "\n\n")
-log.close()
-
-if torch.cuda.device_count() > 1:
-  vae = nn.DataParallel(vae)
+'''if torch.cuda.device_count() > 1:
+  print("Let's use", torch.cuda.device_count(), "GPUs!")
+  vae = nn.DataParallel(vae)'''
 
 vae.to(device)
 
@@ -365,6 +378,26 @@ log = open(output_file + "_log.txt", "a")
 log.write("done! " + time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n\n")
 log.close()
 
+from scipy.signal import savgol_filter
+
+train_res_recon_error_smooth = savgol_filter(train_res_recon_error[100:], 201, 7)
+train_res_perplexity_smooth = savgol_filter(train_res_perplexity[100:], 201, 7)
+
+f = plt.figure(figsize=(16,8))
+ax = f.add_subplot(1,2,1)
+ax.plot(train_res_recon_error_smooth)
+ax.set_yscale('log')
+ax.set_title('Smoothed NMSE.')
+ax.set_xlabel('iteration')
+
+ax = f.add_subplot(1,2,2)
+ax.plot(train_res_perplexity_smooth)
+ax.set_title('Smoothed Average codebook usage (perplexity).')
+ax.set_xlabel('iteration')
+
+
+f.savefig(output_file + "_loss.png")
+
 
 #get encoding and embedding coordinates for test dataset
 
@@ -378,14 +411,15 @@ def gen_embed(fasta, model):
   model = torch.load(model, map_location=device)
   model.eval()
 
-  validation_data = fasta_data(fasta)
+  validation_data = fasta_data(fasta, int(data.avgseqlen))
+  #validation_data = fasta_data(fasta)
   validation_loader = DataLoader(validation_data, batch_size = batch_size, shuffle = False)
 
   panda_output = pd.DataFrame()
 
   for i, batch in enumerate(validation_loader):
 
-      validation_ids = validation_data[i]['id']
+      validation_id = validation_data[i]['id']
 
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
@@ -393,10 +427,11 @@ def gen_embed(fasta, model):
       _, valid_quantize, _, e, embeddings, encodings = model._vq(vq_output_eval)
 
       encoding = encodings.detach().cpu().numpy().flatten()
-      embeds = valid_quantize.view(batch_size, embedding_dim).detach().cpu().numpy().flatten()
+      tmp =''.join([str(e) for e in encoding])
+      encoding = int(tmp)
+      #embeds = valid_quantize.view(batch_size, embedding_dim).detach().cpu().numpy().flatten()
 
-      panda = pd.DataFrame({'ID': validation_ids, 'Encoding': encoding,
-                            'x': embeds[0], 'y': embeds[1]})
+      panda = pd.DataFrame({'ID': validation_id, 'Encoding': encoding}, index=[0])
       
       panda_output = panda_output.append(panda)  
 
@@ -408,11 +443,9 @@ def gen_embed(fasta, model):
   
 model_file = output_file + ".pt"
 
-out_directory = output_file + "_output"
-os.mkdir(out_directory)
-
 test_embeddings = gen_embed(test_file, model_file)
-final_embeddings = embeddings_list[-1]
+
+'''final_embeddings = embeddings_list[-1]
 final_embeddings['Count'] = test_embeddings['Encoding'].value_counts()
 final_embeddings['Encoding'] = final_embeddings.index
 
@@ -431,12 +464,12 @@ for e in embeddings_list:
   plt.scatter(e[0], e[1])
 
   plt.savefig(out_directory + "/learnings/fig"+str(i)+".png")
-  i+=100
+  i+=100'''
   
 os.mkdir(out_directory + "/clusters")
 os.mkdir(out_directory + "/GOs")
 for e in np.unique(test_embeddings["Encoding"].tolist()):
-    input_seq_iterator = SeqIO.parse(test_file, "fasta")
+    input_seq_iterator = SeqIO.parse(train_file, "fasta")
     encoding = test_embeddings[test_embeddings["Encoding"] == e]["ID"].tolist()
     entry = [f.split('|')[1] for f in encoding]
     with open(out_directory + "/GOs/GO" + str(e) + ".txt", "w+") as f:
@@ -447,7 +480,9 @@ for e in np.unique(test_embeddings["Encoding"].tolist()):
     
 #plot stacked bar of target protein families
 
-encode = test_embeddings.drop(['x', 'y'], axis=1)
+#encode = test_embeddings.drop(['x', 'y'], axis=1)
+encode = test_embeddings
+
 encode['ID'] = [f.split('|')[1] for f in encode['ID']]
 
 sf = pd.read_csv('Scerevisiae_target_fams.txt', sep='\t', header=None)
