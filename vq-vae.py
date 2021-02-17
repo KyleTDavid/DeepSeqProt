@@ -24,29 +24,29 @@ trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, b
 
 #encoder
 in_channels = 20
-e_arch = [8,8,8]
-e_depth = [1,1]
+e_arch = [128,32,8]
+e_depth = [1,1,1]
 
 #vector quantizer        
 num_embeddings = 64
 #embedding_dim = 8
 commitment_cost = 0.25
-decay = 0.999
+decay = 0.9
 
 #decoder
-d_arch = [8,8,8]
+d_arch = [8,32,128]
 d_depth = [1,1,1]
 
 #dynamic sampling to ensure one 1 datum per channel at quantizer
 batch_size = 32
 learning_rate = 1e-3
-num_training_updates = 10000
+num_training_updates = 100000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 test_file = "saccharomyces_cerevisiae_proteome.fa"
 train_file = "saccharomycetales_proteomes.fa"
-output_suffix = "test3b"
+output_suffix = "base"
 
 out_directory = output_suffix + "_output"
 os.mkdir(out_directory)
