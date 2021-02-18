@@ -40,13 +40,13 @@ d_depth = [1,1,1]
 #dynamic sampling to ensure one 1 datum per channel at quantizer
 batch_size = 32
 learning_rate = 1e-3
-num_training_updates = 100000
+num_training_updates = 12000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 test_file = "saccharomyces_cerevisiae_proteome.fa"
 train_file = "saccharomycetales_proteomes.fa"
-output_suffix = "base"
+output_suffix = "long_linear_interp3"
 
 out_directory = output_suffix + "_output"
 os.mkdir(out_directory)
@@ -115,7 +115,8 @@ class fasta_data(Dataset):
     '''self.fasta_file.sort(key=lambda r: len(r))'''
     #get average sequence length for variance estimation and interpolation
     seq_lengths = [len(i) for i in self.fasta_file]
-    self.avgseqlen = sum(seq_lengths) / len(seq_lengths)
+    #self.avgseqlen = sum(seq_lengths) / len(seq_lengths)
+    self.avgseqlen = np.round(np.percentile(seq_lengths, 99)) #not really avgseqlen
   def __len__(self):
     return len(self.fasta_file)
   def __getitem__(self, idx):
@@ -469,7 +470,7 @@ for e in embeddings_list:
 os.mkdir(out_directory + "/clusters")
 os.mkdir(out_directory + "/GOs")
 for e in np.unique(test_embeddings["Encoding"].tolist()):
-    input_seq_iterator = SeqIO.parse(train_file, "fasta")
+    input_seq_iterator = SeqIO.parse(test_file, "fasta")
     encoding = test_embeddings[test_embeddings["Encoding"] == e]["ID"].tolist()
     entry = [f.split('|')[1] for f in encoding]
     with open(out_directory + "/GOs/GO" + str(e) + ".txt", "w+") as f:
