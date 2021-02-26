@@ -10,6 +10,7 @@ import pandas as pd
 from Bio import SeqIO
 from torch.utils.data import Dataset, DataLoader
 from scipy.interpolate import interp1d
+from scipy.signal import savgol_filter
 from math import ceil
 from functools import partial
 import matplotlib.pyplot as plt
