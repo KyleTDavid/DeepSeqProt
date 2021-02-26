@@ -14,7 +14,7 @@ from math import ceil
 from functools import partial
 import matplotlib.pyplot as plt
 
-##parameters##
+## PARAMETERS & MODEL ##
 
 #basic blocks
 kernel_size = 1
@@ -26,10 +26,10 @@ trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, b
 in_channels = 20
 e_arch = [128,32,8]
 e_depth = [1,1,1]
+bottleneck = 1
 
 #vector quantizer        
 num_embeddings = 64
-#embedding_dim = 8
 commitment_cost = 0.25
 decay = 0.9
 
@@ -37,23 +37,21 @@ decay = 0.9
 d_arch = [8,32,128]
 d_depth = [1,1,1]
 
-#dynamic sampling to ensure one 1 datum per channel at quantizer
+#training
+beta = 0.01
 batch_size = 32
 learning_rate = 1e-3
-num_training_updates = 12000
+num_training_updates = 10000
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+#inputs and outputs
 test_file = "saccharomyces_cerevisiae_proteome.fa"
 train_file = "saccharomycetales_proteomes.fa"
-output_suffix = "long_linear_interp3"
+output_suffix = "test"
 
-out_directory = output_suffix + "_output"
-os.mkdir(out_directory)
-output_file = out_directory + "/" + output_suffix
-
+#write log
+os.mkdir(output_suffix)
+output_file = output_suffix + "/" + output_suffix
 log = open(output_file + "_log.txt", "w")
-log.write(str(device) + "\n\n")
 log.write("PARAMETERS\n\n")
 log.write("Basic Block\n")
 log.write("kernel size = " + str(kernel_size) + "\n")
@@ -61,15 +59,16 @@ log.write("dilation factor = " + str(dilation) + "\n\n")
 log.write("Encoder\n")
 log.write("encoder architecture = " + str(e_arch) + "\n")
 log.write("encoder depths = " + str(e_depth) + "\n\n")
+log.write("bottleneck = " + str(bottleneck) + "\n\n")
 log.write("Vector Quantizer\n")
 log.write("number of embeddings = " + str(num_embeddings) + "\n")
-#log.write("embedding dimenstions = " + str(embedding_dim) + "\n")
 log.write("commitment cost = " + str(commitment_cost) + "\n")
 log.write("decay = " + str(decay) + "\n\n")
 log.write("Decoder\n")
 log.write("decoder architecture = " + str(d_arch) + "\n")
 log.write("decoder depths = " + str(d_depth) + "\n\n")
 log.write("Learning\n")
+log.write("beta = " + str(beta) + "\n")
 log.write("batch size = " + str(batch_size) + "\n")
 log.write("learning rate = " + str(learning_rate) + "\n")
 log.write("number of training updates = " + str(num_training_updates) + "\n\n")
@@ -106,17 +105,15 @@ def seq_inter(array, length):
   new_len = np.linspace(0, 1, length)
   return torch.tensor(inter_out(new_len),dtype=torch.float)
 
-#dataset for fasta files
+#dataset for fasta files, interpolates one-hot sequnces to standard length (99th percentile by default)
 class fasta_data(Dataset):
   def __init__(self, fasta_file, length=0):
-    #read fasta file and (don't) sort by length
+    #read fasta file
     self.fasta_file = list(SeqIO.parse(fasta_file, "fasta"))
     self.length = length
-    '''self.fasta_file.sort(key=lambda r: len(r))'''
-    #get average sequence length for variance estimation and interpolation
+    #get 99th percentile sequence length for interpolation (seems to preform slightly better than using the mean)
     seq_lengths = [len(i) for i in self.fasta_file]
-    #self.avgseqlen = sum(seq_lengths) / len(seq_lengths)
-    self.avgseqlen = np.round(np.percentile(seq_lengths, 99)) #not really avgseqlen
+    self.nn_perc = np.round(np.percentile(seq_lengths, 99))
   def __len__(self):
     return len(self.fasta_file)
   def __getitem__(self, idx):
@@ -126,7 +123,7 @@ class fasta_data(Dataset):
     ids = self.fasta_file[idx].id
     l = self.length
     if l == 0:
-      l = int(self.avgseqlen)
+      l = int(self.nn_perc)
     seqs = seq_inter(one_hot_seq(self.fasta_file[idx].seq), l)
     sample = {'id':ids, 'seq':seqs}
     return sample
@@ -138,16 +135,6 @@ class encoder(nn.Module):
         super().__init__()
         self.block_arch = block_arch
         
-        self.gate = nn.Sequential(
-            nn.Conv1d(in_channels, self.block_arch[0], kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm1d(self.block_arch[0]),
-            nn.ReLU()
-            #nn.Conv1d(in_channels, self.block_arch[0], kernel_size=7, stride=2, padding=3, bias=False),
-            #nn.BatchNorm1d(self.block_arch[0]),
-            #nn.ReLU(),
-            #nn.MaxPool1d(kernel_size=3, stride=2, padding=1)
-        )
-        
         self.in_out_block_sizes = list(zip(block_arch, block_arch[1:]))
         self.blocks = nn.ModuleList([ 
             resnet.layer(in_channels, block_arch[0], n=deepths[0], 
@@ -158,14 +145,11 @@ class encoder(nn.Module):
             for (in_channels, out_channels), n in zip(self.in_out_block_sizes, deepths[1:])],   
         ])
 
-        self.linit = nn.Linear(int(data.avgseqlen), 1)
+        self.linit = nn.Linear(int(data.nn_perc), bottleneck)
         
     def forward(self, x):
-        #x = self.gate(x)
         for i, block in enumerate(self.blocks) :            
             x = block(x)
-            #print("encode")
-            #print(x.shape)
         x = self.linit(x)
         return x
 
@@ -244,7 +228,7 @@ class decoder(nn.Module):
 
         self.block_arch = block_arch
         
-        self.linit = nn.Linear(1, int(data.avgseqlen))
+        self.linit = nn.Linear(bottleneck, int(data.nn_perc))
 
         self.in_out_block_sizes = list(zip(block_arch, block_arch[1:]))
         self.blocks = nn.ModuleList([ 
@@ -258,21 +242,14 @@ class decoder(nn.Module):
         
         self.gate = nn.Sequential(
             nn.Conv1d(block_arch[-1], 20, kernel_size=1, stride=1, padding=0, bias=False), 
-            #nn.BatchNorm1d(20),1
             nn.ReLU(),
-            #nn.MaxPool1d(kernel_size=3, stride=2, padding=1),
-            #nn.Linear(1, int(data.avgseqlen))
         )
         
     def forward(self, x):
-        #print(x.shape)
         x = self.linit(x)
         for i, block in enumerate(self.blocks) :
             x = block(x)
-            #print("decode")
-            #print(x.shape)
         x = self.gate(x)
-        #print(x.shape)
         return x
 
 #model
@@ -307,32 +284,28 @@ class model(nn.Module):
             
         return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings #encoded is redundant can be removed
 
-#load data and specify model
+## LOAD DATA & MODEL ##
+
 data = fasta_data(train_file)
-
-#variance
-data_var = 0.03214827 #average variance per sequence? hardcoded for now because I'm impatient
-
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
-#sampling = ceil(data.avgseqlen**(1/len(e_arch))) - 1 #dynamic sampling
+data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
 sampling = 1
-embedding_dim = e_arch[-1] 
+embedding_dim = e_arch[-1]
 
 vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
               embedding_dim, commitment_cost, decay, trans, d_arch,
               d_depth, sampling)
 
-'''if torch.cuda.device_count() > 1:
-  print("Let's use", torch.cuda.device_count(), "GPUs!")
-  vae = nn.DataParallel(vae)'''
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vae.to(device)
 
 optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, amsgrad=False)
 
-#training
+## TRAINING ##
+
 vae.train()
+
 train_res_loss = []
 train_res_recon_error = []
 train_res_perplexity = []
@@ -341,9 +314,6 @@ start_time = time.time()
 log = open(output_file + "_log.txt", "a")
 log.write("BEGIN TRAINING " + time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n\n")
 log.close()
-
-#list to store embeddings to observe learning
-embeddings_list = list()
 
 for i in range(num_training_updates):
     batch = next(iter(training_loader))
@@ -354,7 +324,7 @@ for i in range(num_training_updates):
 
     vq_loss, batch_recon, perplexity, quantized, encoded, embeddings, encodings = vae(batch_data)
     recon_error = nn.functional.mse_loss(batch_recon, batch_data) / data_var
-    loss = recon_error + vq_loss
+    loss = recon_error + (beta * vq_loss)
     loss.backward()
 
     optimizer.step()
@@ -372,14 +342,9 @@ for i in range(num_training_updates):
         log.write('perplexity: %.3f' % np.mean(train_res_perplexity[-100:])+ "\n\n")
         log.close()
         torch.save(vae, output_file + ".pt")
-                       
-        embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
 
 log = open(output_file + "_log.txt", "a")
-log.write("done! " + time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n\n")
 log.close()
-
-from scipy.signal import savgol_filter
 
 train_res_recon_error_smooth = savgol_filter(train_res_recon_error[100:], 201, 7)
 train_res_perplexity_smooth = savgol_filter(train_res_perplexity[100:], 201, 7)
@@ -396,15 +361,14 @@ ax.plot(train_res_perplexity_smooth)
 ax.set_title('Smoothed Average codebook usage (perplexity).')
 ax.set_xlabel('iteration')
 
-
 f.savefig(output_file + "_loss.png")
 
+## TESTING ##
 
-#get encoding and embedding coordinates for test dataset
-
-batch_size = 1
+#get encoding for each sequence in test fasta
 def gen_embed(fasta, model):
-
+  batch_size = 1
+  
   log = open(output_file + "_log.txt", "a")
   log.write("BEGIN TESTING " + time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n\n")
   log.close()
@@ -412,15 +376,14 @@ def gen_embed(fasta, model):
   model = torch.load(model, map_location=device)
   model.eval()
 
-  validation_data = fasta_data(fasta, int(data.avgseqlen))
-  #validation_data = fasta_data(fasta)
+  validation_data = fasta_data(fasta, int(data.nn_perc))
   validation_loader = DataLoader(validation_data, batch_size = batch_size, shuffle = False)
 
   panda_output = pd.DataFrame()
 
   for i, batch in enumerate(validation_loader):
 
-      validation_id = validation_data[i]['id']
+      validation_id = validation_data[i]['id'].split("|")[1]
 
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
@@ -430,73 +393,120 @@ def gen_embed(fasta, model):
       encoding = encodings.detach().cpu().numpy().flatten()
       tmp =''.join([str(e) for e in encoding])
       encoding = int(tmp)
-      #embeds = valid_quantize.view(batch_size, embedding_dim).detach().cpu().numpy().flatten()
 
-      panda = pd.DataFrame({'ID': validation_id, 'Encoding': encoding}, index=[0])
+      panda = pd.DataFrame({'Entry': validation_id, 'Encoding': encoding}, index=[0])
       
       panda_output = panda_output.append(panda)  
 
       if (i+1) % 1000 == 0:
         log = open(output_file + "_log.txt", "a")
-        log.write("%d sequences processed" % (i+1*batch_size)+ "\n")
+        log.write(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n")
+        log.write("%d sequences processed" % (i+1*batch_size)+ "\n\n")
     
   return panda_output
   
 model_file = output_file + ".pt"
+encodings = gen_embed(test_file, model_file)
 
-test_embeddings = gen_embed(test_file, model_file)
+## VALIDATION ##
 
-'''final_embeddings = embeddings_list[-1]
-final_embeddings['Count'] = test_embeddings['Encoding'].value_counts()
-final_embeddings['Encoding'] = final_embeddings.index
+#grab uniprot info from fasta
+import requests as r
+from io import StringIO
 
-plt.scatter(final_embeddings[0], final_embeddings[1], s=final_embeddings['Count'], alpha=0.5)
+uniprot_df = pd.DataFrame()
 
-for i, txt in enumerate(final_embeddings['Encoding']):
-    plt.annotate(txt, (final_embeddings[0][i], final_embeddings[1][i]))
-
-plt.savefig(out_directory + "/Encodings.png")
-
-os.mkdir(out_directory + "/learnings")
-i=0
-for e in embeddings_list:
-  plt.figure()
+headers = []
+for record in SeqIO.parse(test_file, 'fasta'):
+  headers.append(record.id.split("|")[1])
   
-  plt.scatter(e[0], e[1])
+for i in range(0, len(headers), 250):
+  if i + 250 > len(headers):
+    batch = headers[i:-1]
+  else:
+    batch = headers[i:i+250]
 
-  plt.savefig(out_directory + "/learnings/fig"+str(i)+".png")
-  i+=100'''
+  id_string = ""
+
+  for id in batch:
+    id_string = id_string + "id:" + id + " + OR + "
+
+  id_string = id_string[:-7]
+
+  Url="https://www.uniprot.org/uniprot/?query=" + id_string + "&format=tab&columns=id,families,go-id"
+
+  response = r.post(Url)
+  tmp_df = pd.read_csv(StringIO(response.text), sep = '\t')
+  uniprot_df = pd.concat([uniprot_df, tmp_df])
   
-os.mkdir(out_directory + "/clusters")
-os.mkdir(out_directory + "/GOs")
-for e in np.unique(test_embeddings["Encoding"].tolist()):
-    input_seq_iterator = SeqIO.parse(test_file, "fasta")
-    encoding = test_embeddings[test_embeddings["Encoding"] == e]["ID"].tolist()
-    entry = [f.split('|')[1] for f in encoding]
-    with open(out_directory + "/GOs/GO" + str(e) + ".txt", "w+") as f:
-      for g in entry:
-        f.write('%s\n' % g)
-    subfasta = [record for record in input_seq_iterator if record.id in encoding]
-    SeqIO.write(subfasta, out_directory + "/clusters/subfasta" + str(e) + ".fa", "fasta")
-    
-#plot stacked bar of target protein families
+results = []
 
-#encode = test_embeddings.drop(['x', 'y'], axis=1)
-encode = test_embeddings
+#add uniprot annotations
+df = encodings.merge(uniprot_df)
 
-encode['ID'] = [f.split('|')[1] for f in encode['ID']]
+#only look at protein families with at least 2 members, group by family
+v = df['Protein families'].value_counts()
+fams = df[df['Protein families'].isin(v.index[v.gt(1)])]
+group = fams.groupby('Protein families')['Encoding']
 
-sf = pd.read_csv('Scerevisiae_target_fams.txt', sep='\t', header=None)
-sf.columns = ['ID', 'Name']
-sf_encode = encode.merge(sf)
+#percentage of complete families (all members have the same encoding)
+com = group.nunique()
+results.append(["complete families",(len(com[com==True]) / len(com))])
 
-def frequency_table(x):
-    return pd.crosstab(index=x,  columns="count")
-ctabs = {}
-for column in sf_encode:
-    ctabs[column]=frequency_table(sf_encode[column])
+#family completeness (largest number of members that share a cluster / family size)
+results.append(["family completeness",
+                group.apply(lambda x: x.value_counts().head(1)).sum() / group.size().sum()])
 
-sf_encode_table = sf_encode.groupby(['Encoding', 'Name'])['Encoding'].count().unstack('Name').fillna(0)
-plot = sf_encode_table.plot.bar(stacked=True)
-fig = plot.get_figure()
-fig.savefig(out_directory + '/target_families.png')
+#run gene ontology enrichment analysis
+# Get http://geneontology.org/ontology/go-basic.obo
+from goatools.base import download_go_basic_obo
+obo_fname = download_go_basic_obo()
+
+df['Gene ontology IDs'] = df['Gene ontology IDs'].str.replace(' ','')
+df.drop(['Encoding', 'Protein families'], axis=1).to_csv("GOA.txt", sep='\t', header=False, index=False)
+
+from goatools.anno.idtogos_reader import IdToGosReader
+objanno = IdToGosReader("GOA.txt")
+ns2assoc = objanno.get_id2gos()
+
+from goatools.obo_parser import GODag
+obodag = GODag("go-basic.obo")
+
+from goatools.go_enrichment import GOEnrichmentStudy
+goeaobj = GOEnrichmentStudy(
+        df.Entry, 
+        ns2assoc, # geneid/GO associations
+        obodag, # Ontologies
+        propagate_counts = False,
+        alpha = 0.001, # default significance cut-off
+        methods = ['fdr_bh']) # default multipletest correction method
+
+gos = []
+for e in set(df.Encoding):
+  goea_results = goeaobj.run_study(list(df[df['Encoding']==e].Entry))
+  for r in goea_results:
+      if (r.p_fdr_bh < 0.001) & (r.enrichment=='e') :
+        id = r.goterm.id
+        name = r.name
+        members = r.study_items
+        gos.append([id, name, e, members])
+
+godf = pd.DataFrame(gos, columns=['id', 'name', 'encoding', 'members'])
+
+members = [item for sublist in godf.members for item in sublist]
+
+#how many members have at least one significant GO?
+results.append(["GO accuracy",
+                len(set(members)) / len(df[df["Gene ontology IDs"].notnull()].Entry)])
+
+#how many members have at least one significant unique GO?
+v = godf['name'].value_counts()
+uniqgodf = godf[godf['name'].isin(v.index[v.lt(2)])]
+
+uniqmembers = [item for sublist in uniqgodf.members for item in sublist]
+
+results.append(["unique GO accuracy",
+                len(set(uniqmembers)) / len(df[df["Gene ontology IDs"].notnull()].Entry)])
+
+resultsdf = pd.DataFrame(results)
+resultsdf.to_csv(output_file + "_report.txt", sep='\t', header=False, index=False)
