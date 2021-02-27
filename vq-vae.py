@@ -42,12 +42,12 @@ d_depth = [1,1,1]
 beta = 0.01
 batch_size = 32
 learning_rate = 1e-3
-num_training_updates = 10000
+num_training_updates = 100
 
 #inputs and outputs
 test_file = "saccharomyces_cerevisiae_proteome.fa"
 train_file = "saccharomycetales_proteomes.fa"
-output_suffix = "test"
+output_suffix = "tmp"
 
 #write log
 os.mkdir(output_suffix)
@@ -441,6 +441,8 @@ for i in range(0, len(headers), 250):
   uniprot_df = pd.concat([uniprot_df, tmp_df])
   
 results = []
+
+results.append(["# of categories", len(set(df.Encoding))])
 
 #add uniprot annotations
 df = encodings.merge(uniprot_df)
