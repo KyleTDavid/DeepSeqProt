@@ -442,10 +442,10 @@ for i in range(0, len(headers), 250):
   
 results = []
 
-results.append(["# of categories", len(set(df.Encoding))])
-
 #add uniprot annotations
 df = encodings.merge(uniprot_df)
+
+results.append(["# of categories", len(set(df.Encoding))])
 
 #only look at protein families with at least 2 members, group by family
 v = df['Protein families'].value_counts()
