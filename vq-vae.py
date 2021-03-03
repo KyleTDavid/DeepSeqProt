@@ -4,6 +4,7 @@ import resnet
 import os
 import time
 import torch
+import random
 import torch.nn as nn
 import numpy as np
 import pandas as pd
@@ -15,6 +16,8 @@ from math import ceil
 from functools import partial
 import matplotlib.pyplot as plt
 
+start_time = time.time()
+
 ## PARAMETERS & MODEL ##
 
 #basic blocks
@@ -25,29 +28,29 @@ trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, b
 
 #encoder
 in_channels = 20
-e_arch = [128,32,8]
-e_depth = [1,1,1]
+e_arch = [128,64,32,16,8,4]
+e_depth = [1,1,1,1,1,1]
 bottleneck = 1
 
 #vector quantizer        
 num_embeddings = 64
-commitment_cost = 0.25
+commitment_cost = 0.01
 decay = 0.9
 
 #decoder
-d_arch = [8,32,128]
-d_depth = [1,1,1]
+d_arch = [4,8,16,32,64,128]
+d_depth = [1,1,1,1,1,1]
 
 #training
-beta = 0.01
+beta = 1
 batch_size = 32
 learning_rate = 1e-3
-num_training_updates = 100
+num_training_updates = 10000
 
 #inputs and outputs
 test_file = "saccharomyces_cerevisiae_proteome.fa"
 train_file = "saccharomycetales_proteomes.fa"
-output_suffix = "tmp"
+output_suffix = "test"
 
 #write log
 os.mkdir(output_suffix)
@@ -111,6 +114,7 @@ class fasta_data(Dataset):
   def __init__(self, fasta_file, length=0):
     #read fasta file
     self.fasta_file = list(SeqIO.parse(fasta_file, "fasta"))
+    random.shuffle(self.fasta_file)
     self.length = length
     #get 99th percentile sequence length for interpolation (seems to preform slightly better than using the mean)
     seq_lengths = [len(i) for i in self.fasta_file]
@@ -186,6 +190,8 @@ class vector_quantizer(nn.Module):
                     + torch.sum(self._embedding.weight ** 2, dim = 1)
                      - 2 * torch.matmul(flat_input, self._embedding.weight.t()))
         
+        #BAYESIAN COMES IN HERE
+
         #encoding
         encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
         encodings = torch.zeros(encoding_indices.shape[0], self._num_embeddings, device = inputs.device)
@@ -211,7 +217,10 @@ class vector_quantizer(nn.Module):
             self._embedding.weight = nn.Parameter(self._ema_w / self._ema_cluster_size.unsqueeze(1))
         
         #loss
-        e_latent_loss = nn.functional.mse_loss(quantized.detach(), inputs)
+        sm = nn.Softmax()
+        kl = nn.KLDivLoss()
+        e_latent_loss = kl(sm(quantized.detach()), sm(inputs))
+        #e_latent_loss = nn.functional.mse_loss(quantized.detach(), inputs)
         loss = self._commitment_cost * e_latent_loss
         
         quantized = inputs + (quantized - inputs).detach()
@@ -311,58 +320,72 @@ train_res_loss = []
 train_res_recon_error = []
 train_res_perplexity = []
 
-start_time = time.time()
 log = open(output_file + "_log.txt", "a")
 log.write("BEGIN TRAINING " + time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n\n")
 log.close()
 
-for i in range(num_training_updates):
-    batch = next(iter(training_loader))
-    batch_data = batch['seq']
-    batch_data = batch_data.to(device)
-    
-    optimizer.zero_grad()
+#list to store embeddings to observe learning
+embeddings_list = list()
 
-    vq_loss, batch_recon, perplexity, quantized, encoded, embeddings, encodings = vae(batch_data)
-    recon_error = nn.functional.mse_loss(batch_recon, batch_data) / data_var
-    loss = recon_error + (beta * vq_loss)
-    loss.backward()
+class BreakIt(Exception): pass
 
-    optimizer.step()
-    
-    train_res_loss.append(loss.item())
-    train_res_recon_error.append(recon_error.item())
-    train_res_perplexity.append(perplexity.item())
+try:
+  for i in range(num_training_updates):
+      batch = next(iter(training_loader))
+      batch_data = batch['seq']
+      batch_data = batch_data.to(device)
+      
+      optimizer.zero_grad()
 
-    if (i+1) % 100 == 0:
-        log = open(output_file + "_log.txt", "a")
-        log.write(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n")
-        log.write('%d iterations' % (i+1) + "\n")
-        log.write('loss: %.3f' % np.mean(train_res_loss[-100:]) + "\n")
-        log.write('recon_error: %.3f' % np.mean(train_res_recon_error[-100:])+ "\n")
-        log.write('perplexity: %.3f' % np.mean(train_res_perplexity[-100:])+ "\n\n")
-        log.close()
-        torch.save(vae, output_file + ".pt")
+      vq_loss, batch_recon, perplexity, quantized, encoded, embeddings, encodings = vae(batch_data)
+      recon_error = nn.functional.mse_loss(batch_recon, batch_data) / data_var
+      loss = recon_error + (beta * vq_loss)
+      loss.backward()
+
+      optimizer.step()
+      
+      train_res_loss.append(loss.item())
+      train_res_recon_error.append(recon_error.item())
+      train_res_perplexity.append(perplexity.item())
+
+      if (i+1) % 100 == 0:
+          log = open(output_file + "_log.txt", "a")
+          log.write(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n")
+          log.write('%d iterations' % (i+1) + "\n")
+          log.write('loss: %.3f' % np.mean(train_res_loss[-100:]) + "\n")
+          log.write('recon_error: %.3f' % np.mean(train_res_recon_error[-100:])+ "\n")
+          log.write('perplexity: %.3f' % np.mean(train_res_perplexity[-100:])+ "\n\n")
+          log.close()
+          torch.save(vae, output_file + ".pt")
+
+          embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
+      
+      if (i+1) % 2000 == 0:
+          train_res_recon_error_smooth = savgol_filter(train_res_recon_error[10:], 201, 7)
+          train_res_perplexity_smooth = savgol_filter(train_res_perplexity[10:], 201, 7)
+
+          f = plt.figure(figsize=(16,8))
+          ax = f.add_subplot(1,2,1)
+          ax.plot(train_res_recon_error_smooth)
+          ax.set_yscale('log')
+          ax.set_title('Smoothed NMSE.')
+          ax.set_xlabel('iteration')
+
+          ax = f.add_subplot(1,2,2)
+          ax.plot(train_res_perplexity_smooth)
+          ax.set_title('Smoothed Average codebook usage (perplexity).')
+          ax.set_xlabel('iteration')
+
+          f.savefig(output_file + "_loss.png")
+
+          if min(train_res_loss[-2000:-1000]) <= min(train_res_loss[-1000:]):
+            raise BreakIt
+
+except BreakIt:
+  pass
 
 log = open(output_file + "_log.txt", "a")
 log.close()
-
-train_res_recon_error_smooth = savgol_filter(train_res_recon_error[100:], 201, 7)
-train_res_perplexity_smooth = savgol_filter(train_res_perplexity[100:], 201, 7)
-
-f = plt.figure(figsize=(16,8))
-ax = f.add_subplot(1,2,1)
-ax.plot(train_res_recon_error_smooth)
-ax.set_yscale('log')
-ax.set_title('Smoothed NMSE.')
-ax.set_xlabel('iteration')
-
-ax = f.add_subplot(1,2,2)
-ax.plot(train_res_perplexity_smooth)
-ax.set_title('Smoothed Average codebook usage (perplexity).')
-ax.set_xlabel('iteration')
-
-f.savefig(output_file + "_loss.png")
 
 ## TESTING ##
 
@@ -380,7 +403,8 @@ def gen_embed(fasta, model):
   validation_data = fasta_data(fasta, int(data.nn_perc))
   validation_loader = DataLoader(validation_data, batch_size = batch_size, shuffle = False)
 
-  panda_output = pd.DataFrame()
+  output = []
+  header = []
 
   for i, batch in enumerate(validation_loader):
 
@@ -391,20 +415,25 @@ def gen_embed(fasta, model):
       vq_output_eval = model._encoder(validation_seqs)
       _, valid_quantize, _, e, embeddings, encodings = model._vq(vq_output_eval)
 
-      encoding = encodings.detach().cpu().numpy().flatten()
-      tmp =''.join([str(e) for e in encoding])
-      encoding = int(tmp)
+      encoding = int(encodings.detach().cpu().numpy().flatten())
+      embeds = valid_quantize.view(batch_size, embedding_dim).detach().cpu().numpy().flatten()
 
-      panda = pd.DataFrame({'Entry': validation_id, 'Encoding': encoding}, index=[0])
+      output.append([validation_id, encoding] + list(embeds))
       
-      panda_output = panda_output.append(panda)  
+      if i == 0:
+        dims = []
+        for i in range(len(embeds)):
+          dims.append("Dim_" + str(i))
+          header = ['Entry', 'Encoding'] + dims
 
       if (i+1) % 1000 == 0:
         log = open(output_file + "_log.txt", "a")
         log.write(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n")
         log.write("%d sequences processed" % (i+1*batch_size)+ "\n\n")
     
-  return panda_output
+
+
+  return pd.DataFrame(output, columns=header)
   
 model_file = output_file + ".pt"
 encodings = gen_embed(test_file, model_file)
@@ -442,8 +471,10 @@ for i in range(0, len(headers), 250):
   
 results = []
 
+results = []
+
 #add uniprot annotations
-df = encodings.merge(uniprot_df)
+df = encodings.iloc[:, 0:2].merge(uniprot_df)
 
 results.append(["# of categories", len(set(df.Encoding))])
 
@@ -459,7 +490,7 @@ results.append(["complete families",(len(com[com==True]) / len(com))])
 #family completeness (largest number of members that share a cluster / family size)
 results.append(["family completeness",
                 group.apply(lambda x: x.value_counts().head(1)).sum() / group.size().sum()])
-
+                
 #run gene ontology enrichment analysis
 # Get http://geneontology.org/ontology/go-basic.obo
 from goatools.base import download_go_basic_obo
