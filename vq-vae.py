@@ -356,13 +356,15 @@ try:
           log.write('recon_error: %.3f' % np.mean(train_res_recon_error[-100:])+ "\n")
           log.write('perplexity: %.3f' % np.mean(train_res_perplexity[-100:])+ "\n\n")
           log.close()
+
+
+      if (i+1) % 1000 == 0:
           torch.save(vae, output_file + ".pt")
 
           embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
-      
-      if (i+1) % 2000 == 0:
-          train_res_recon_error_smooth = savgol_filter(train_res_recon_error[10:], 201, 7)
-          train_res_perplexity_smooth = savgol_filter(train_res_perplexity[10:], 201, 7)
+          
+          train_res_recon_error_smooth = savgol_filter(train_res_recon_error[10:], 51, 7)
+          train_res_perplexity_smooth = savgol_filter(train_res_perplexity[10:], 51 , 7)
 
           f = plt.figure(figsize=(16,8))
           ax = f.add_subplot(1,2,1)
@@ -377,8 +379,29 @@ try:
           ax.set_xlabel('iteration')
 
           f.savefig(output_file + "_loss.png")
-
+      
+      if (i+1) > 2000:
           if min(train_res_loss[-2000:-1000]) <= min(train_res_loss[-1000:]):
+            torch.save(vae, output_file + ".pt")
+
+            embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
+            
+            train_res_recon_error_smooth = savgol_filter(train_res_recon_error[10:], 201, 7)
+            train_res_perplexity_smooth = savgol_filter(train_res_perplexity[10:], 201 , 7)
+
+            f = plt.figure(figsize=(16,8))
+            ax = f.add_subplot(1,2,1)
+            ax.plot(train_res_recon_error_smooth)
+            ax.set_yscale('log')
+            ax.set_title('Smoothed NMSE.')
+            ax.set_xlabel('iteration')
+
+            ax = f.add_subplot(1,2,2)
+            ax.plot(train_res_perplexity_smooth)
+            ax.set_title('Smoothed Average codebook usage (perplexity).')
+            ax.set_xlabel('iteration')
+
+            f.savefig(output_file + "_loss.png")
             raise BreakIt
 
 except BreakIt:
