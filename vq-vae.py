@@ -495,10 +495,9 @@ for i in range(0, len(headers), 250):
   
 results = []
 
-results = []
-
 #add uniprot annotations
 df = encodings.iloc[:, 0:2].merge(uniprot_df)
+df.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 results.append(["# of categories", len(set(df.Encoding))])
 
