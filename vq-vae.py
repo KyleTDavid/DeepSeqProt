@@ -460,6 +460,7 @@ def gen_embed(fasta, model):
   
 model_file = output_file + ".pt"
 encodings = gen_embed(test_file, model_file)
+encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 ## VALIDATION ##
 
