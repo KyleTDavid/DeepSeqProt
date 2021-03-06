@@ -465,6 +465,13 @@ model_file = output_file + ".pt"
 encodings = gen_embed(test_file, model_file)
 encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
+cols = []
+cols.append(encodings.groupby('Encoding')['Encoding'].size())
+for dim in list(encodings.columns)[2:]:
+  cols.append(encodings.groupby('Encoding')[dim].mean())
+coords = pd.concat(cols, axis =1)
+
+encodings.to_csv(output_file + "_coordinates.txt", sep='\t', header=False, index=False)
 
 ## VALIDATION ##
 
@@ -497,8 +504,6 @@ for i in range(0, len(headers), 250):
   tmp_df = pd.read_csv(StringIO(response.text), sep = '\t')
   uniprot_df = pd.concat([uniprot_df, tmp_df])
   
-results = []
-
 results = []
 
 #add uniprot annotations
