@@ -33,7 +33,7 @@ e_depth = [1,1,1,1,1,1]
 bottleneck = 1
 
 #vector quantizer        
-num_embeddings = 64
+num_embeddings = 256
 commitment_cost = 0.01
 decay = 0.9
 
@@ -48,9 +48,9 @@ learning_rate = 1e-3
 num_training_updates = 10000
 
 #inputs and outputs
-test_file = "saccharomyces_cerevisiae_proteome.fa"
+test_file = "bigger_metazoa_test.fa"
 train_file = "saccharomycetales_proteomes.fa"
-output_suffix = "test"
+output_suffix = "metazoa_test"
 
 #write log
 os.mkdir(output_suffix)
@@ -114,7 +114,6 @@ class fasta_data(Dataset):
   def __init__(self, fasta_file, length=0):
     #read fasta file
     self.fasta_file = list(SeqIO.parse(fasta_file, "fasta"))
-    random.shuffle(self.fasta_file)
     self.length = length
     #get 99th percentile sequence length for interpolation (seems to preform slightly better than using the mean)
     seq_lengths = [len(i) for i in self.fasta_file]
@@ -200,10 +199,12 @@ class vector_quantizer(nn.Module):
         #quantize and unflatten
         quantized = torch.matmul(encodings, self._embedding.weight).view(input_shape)
         
+        
         #use EMA to update the embedding vectors
         if self.training:
             self._ema_cluster_size = self._ema_cluster_size * self._decay + \
             (1 - self._decay) * torch.sum(encodings, 0)
+            
             
             #laplace smoothing of cluster size
             n = torch.sum(self._ema_cluster_size.data)
@@ -215,7 +216,8 @@ class vector_quantizer(nn.Module):
             self._ema_w = nn.Parameter(self._ema_w * self._decay + (1 - self._decay) * dw)
             
             self._embedding.weight = nn.Parameter(self._ema_w / self._ema_cluster_size.unsqueeze(1))
-        
+
+
         #loss
         sm = nn.Softmax()
         kl = nn.KLDivLoss()
@@ -293,6 +295,7 @@ class model(nn.Module):
         x_recon = self._decoder(quantized)
             
         return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings #encoded is redundant can be removed
+
 
 ## LOAD DATA & MODEL ##
 
@@ -462,6 +465,7 @@ model_file = output_file + ".pt"
 encodings = gen_embed(test_file, model_file)
 encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
+
 ## VALIDATION ##
 
 #grab uniprot info from fasta
@@ -493,6 +497,8 @@ for i in range(0, len(headers), 250):
   tmp_df = pd.read_csv(StringIO(response.text), sep = '\t')
   uniprot_df = pd.concat([uniprot_df, tmp_df])
   
+results = []
+
 results = []
 
 #add uniprot annotations
