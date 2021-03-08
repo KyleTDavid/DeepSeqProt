@@ -29,11 +29,11 @@ trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, b
 #encoder
 in_channels = 20
 e_arch = [128,64,32,16,8,4]
-e_depth = [1,1,1,1,1,1]
+e_depth = [1,1,1,1,1,4]
 bottleneck = 1
 
 #vector quantizer        
-num_embeddings = 256
+num_embeddings = 64
 commitment_cost = 0.01
 decay = 0.9
 
@@ -48,9 +48,9 @@ learning_rate = 1e-3
 num_training_updates = 10000
 
 #inputs and outputs
-test_file = "bigger_metazoa_test.fa"
-train_file = "saccharomycetales_proteomes.fa"
-output_suffix = "metazoa_test"
+test_file = "metazoa_test.fa"
+train_file = "metazoa_test.fa"
+output_suffix = "metazoa_selftrainlong"
 
 #write log
 os.mkdir(output_suffix)
@@ -383,8 +383,8 @@ try:
 
           f.savefig(output_file + "_loss.png")
       
-      if (i+1) > 2000:
-          if min(train_res_loss[-2000:-1000]) <= min(train_res_loss[-1000:]):
+      if (i+1) > 10000:
+          if min(train_res_loss[-10000:-5000]) <= min(train_res_loss[-5000:]):
             torch.save(vae, output_file + ".pt")
 
             embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
@@ -498,7 +498,7 @@ for i in range(0, len(headers), 250):
 
   id_string = id_string[:-7]
 
-  Url="https://www.uniprot.org/uniprot/?query=" + id_string + "&format=tab&columns=id,families,go-id"
+  Url="https://www.uniprot.org/uniprot/?query=" + id_string + "&format=tab&columns=id,organism,families,go-id"
 
   response = r.post(Url)
   tmp_df = pd.read_csv(StringIO(response.text), sep = '\t')
