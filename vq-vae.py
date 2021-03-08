@@ -29,7 +29,7 @@ trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, b
 #encoder
 in_channels = 20
 e_arch = [128,64,32,16,8,4]
-e_depth = [1,1,1,1,1,4]
+e_depth = [1,1,1,1,1,1]
 bottleneck = 1
 
 #vector quantizer        
