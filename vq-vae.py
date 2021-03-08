@@ -17,6 +17,7 @@ from functools import partial
 import matplotlib.pyplot as plt
 
 start_time = time.time()
+start_time = time.time()
 
 ## PARAMETERS & MODEL ##
 
@@ -33,7 +34,7 @@ e_depth = [1,1,1,1,1,1]
 bottleneck = 1
 
 #vector quantizer        
-num_embeddings = 64
+num_embeddings = 1000
 commitment_cost = 0.01
 decay = 0.9
 
@@ -48,8 +49,8 @@ learning_rate = 1e-3
 num_training_updates = 10000
 
 #inputs and outputs
-test_file = "saccharomyces_cerevisiae_proteome.fa"
-train_file = "saccharomycetales_proteomes.fa"
+test_file = "metazoa_test.fa"
+train_file = "metazoa_train.fa"
 output_suffix = "test"
 
 #write log
@@ -114,7 +115,6 @@ class fasta_data(Dataset):
   def __init__(self, fasta_file, length=0):
     #read fasta file
     self.fasta_file = list(SeqIO.parse(fasta_file, "fasta"))
-    random.shuffle(self.fasta_file)
     self.length = length
     #get 99th percentile sequence length for interpolation (seems to preform slightly better than using the mean)
     seq_lengths = [len(i) for i in self.fasta_file]
@@ -173,10 +173,13 @@ class vector_quantizer(nn.Module):
         self.register_buffer('_ema_cluster_size', torch.zeros(num_embeddings))
         self._ema_w = nn.Parameter(torch.Tensor(num_embeddings, self._embedding_dim))
         self._ema_w.data.normal_()
+
+        self._sm = nn.Softmax(dim=2)
+        self._kl = nn.KLDivLoss(reduction='batchmean')
         
         self._decay = decay
         self._epsilon = epsilon
-        
+
     def forward(self, inputs):
         #convert inputs from BCL -> BLC
         inputs = inputs.permute(0, 2, 1).contiguous()
@@ -200,10 +203,12 @@ class vector_quantizer(nn.Module):
         #quantize and unflatten
         quantized = torch.matmul(encodings, self._embedding.weight).view(input_shape)
         
+        
         #use EMA to update the embedding vectors
         if self.training:
             self._ema_cluster_size = self._ema_cluster_size * self._decay + \
             (1 - self._decay) * torch.sum(encodings, 0)
+            
             
             #laplace smoothing of cluster size
             n = torch.sum(self._ema_cluster_size.data)
@@ -215,11 +220,10 @@ class vector_quantizer(nn.Module):
             self._ema_w = nn.Parameter(self._ema_w * self._decay + (1 - self._decay) * dw)
             
             self._embedding.weight = nn.Parameter(self._ema_w / self._ema_cluster_size.unsqueeze(1))
-        
+
+
         #loss
-        sm = nn.Softmax()
-        kl = nn.KLDivLoss()
-        e_latent_loss = kl(sm(quantized.detach()), sm(inputs))
+        e_latent_loss = self._kl(self._sm(quantized.detach()), self._sm(inputs))
         #e_latent_loss = nn.functional.mse_loss(quantized.detach(), inputs)
         loss = self._commitment_cost * e_latent_loss
         
@@ -294,6 +298,7 @@ class model(nn.Module):
             
         return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings #encoded is redundant can be removed
 
+
 ## LOAD DATA & MODEL ##
 
 data = fasta_data(train_file)
@@ -301,7 +306,7 @@ training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
 sampling = 1
-embedding_dim = e_arch[-1]
+embedding_dim = e_arch[-1] * batch_size
 
 vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
               embedding_dim, commitment_cost, decay, trans, d_arch,
@@ -380,8 +385,8 @@ try:
 
           f.savefig(output_file + "_loss.png")
       
-      if (i+1) > 2000:
-          if min(train_res_loss[-2000:-1000]) <= min(train_res_loss[-1000:]):
+      if (i+1) > 5000:
+          if min(train_res_loss[-5000:-2500]) <= min(train_res_loss[-2500:]):
             torch.save(vae, output_file + ".pt")
 
             embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
@@ -409,6 +414,7 @@ except BreakIt:
 
 log = open(output_file + "_log.txt", "a")
 log.close()
+
 
 ## TESTING ##
 
@@ -460,6 +466,8 @@ def gen_embed(fasta, model):
   
 model_file = output_file + ".pt"
 encodings = gen_embed(test_file, model_file)
+encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
+
 
 ## VALIDATION ##
 
@@ -498,6 +506,7 @@ results = []
 
 #add uniprot annotations
 df = encodings.iloc[:, 0:2].merge(uniprot_df)
+df.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 results.append(["# of categories", len(set(df.Encoding))])
 
