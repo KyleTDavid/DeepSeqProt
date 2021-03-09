@@ -149,8 +149,8 @@ class encoder(nn.Module):
             for (in_channels, out_channels), n in zip(self.in_out_block_sizes, deepths[1:])],   
         ])
 
-        self.linit = nn.Linear(int(data.nn_perc), bottleneck)
-        self.liny = nn.Linear(int(data.nn_perc), int(num_embeddings/block_arch[-1]))
+        self.linit = nn.Linear(2000, bottleneck)
+        self.liny = nn.Linear(2000, int(num_embeddings/block_arch[-1]))
         
     def forward(self, x):
         for i, block in enumerate(self.blocks) :            
@@ -160,7 +160,7 @@ class encoder(nn.Module):
         return y, z
 
 def soft_prob(dist, smooth):
-  prob = torch.exp(-torch.multiply(dist, 0.5*smooth))/torch.sqrt(smooth)
+  prob = torch.exp(-torch.mul(dist, 0.5*smooth))/torch.sqrt(smooth)
   probs = prob/prob.sum(1).unsqueeze(1)
   return probs
 
@@ -268,7 +268,7 @@ class decoder(nn.Module):
 
         self.block_arch = block_arch
         
-        self.linit = nn.Linear(bottleneck, int(data.nn_perc))
+        self.linit = nn.Linear(bottleneck, 2000)
 
         self.in_out_block_sizes = list(zip(block_arch, block_arch[1:]))
         self.blocks = nn.ModuleList([ 
@@ -456,7 +456,7 @@ def gen_embed(fasta, model):
   model = torch.load(model, map_location=device)
   model.eval()
 
-  validation_data = fasta_data(fasta, int(data.nn_perc))
+  validation_data = fasta_data(fasta, 2000)
   validation_loader = DataLoader(validation_data, batch_size = batch_size, shuffle = False)
 
   output = []
