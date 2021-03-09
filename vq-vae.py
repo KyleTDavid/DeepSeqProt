@@ -190,7 +190,7 @@ class vector_quantizer(nn.Module):
         #convert inputs from BCL -> BLC
         soft = inputs[1]
         soft = soft.permute(0, 2, 1).contiguous()
-        soft = soft.view(batch_size, num_embeddings)
+        soft = soft.view(-1, num_embeddings)
         #print('soft shape' + str(soft.shape))
 
         inputs = inputs[0]
