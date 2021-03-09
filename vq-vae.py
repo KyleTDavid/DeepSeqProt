@@ -17,7 +17,6 @@ from functools import partial
 import matplotlib.pyplot as plt
 
 start_time = time.time()
-start_time = time.time()
 
 ## PARAMETERS & MODEL ##
 
@@ -34,7 +33,7 @@ e_depth = [1,1,1,1,1,1]
 bottleneck = 1
 
 #vector quantizer        
-num_embeddings = 1000
+num_embeddings = 100
 commitment_cost = 0.01
 decay = 0.9
 
@@ -49,8 +48,8 @@ learning_rate = 1e-3
 num_training_updates = 10000
 
 #inputs and outputs
-test_file = "metazoa_test.fa"
-train_file = "metazoa_train.fa"
+test_file = "saccharomyces_cerevisiae_proteome.fa"
+train_file = "saccharomycetales_proteomes.fa"
 output_suffix = "test"
 
 #write log
@@ -151,12 +150,19 @@ class encoder(nn.Module):
         ])
 
         self.linit = nn.Linear(int(data.nn_perc), bottleneck)
+        self.liny = nn.Linear(int(data.nn_perc), int(num_embeddings/block_arch[-1]))
         
     def forward(self, x):
         for i, block in enumerate(self.blocks) :            
             x = block(x)
-        x = self.linit(x)
-        return x
+        y = self.linit(x)
+        z = self.liny(x)
+        return y, z
+
+def soft_prob(dist, smooth):
+  prob = torch.exp(-torch.multiply(dist, 0.5*smooth))/torch.sqrt(smooth)
+  probs = prob/prob.sum(1).unsqueeze(1)
+  return probs
 
 #vector quantizer
 class vector_quantizer(nn.Module):
@@ -182,18 +188,39 @@ class vector_quantizer(nn.Module):
 
     def forward(self, inputs):
         #convert inputs from BCL -> BLC
+        soft = inputs[1]
+        soft = soft.permute(0, 2, 1).contiguous()
+        soft = soft.view(batch_size, num_embeddings)
+        #print('soft shape' + str(soft.shape))
+
+        inputs = inputs[0]
+
         inputs = inputs.permute(0, 2, 1).contiguous()
         input_shape = inputs.shape
         
         #flatten input
+        #print(inputs.shape)
         flat_input = inputs.view(-1, self._embedding_dim)
-        
         #calculate distances
         distances = (torch.sum(flat_input ** 2, dim = 1, keepdim = True)
                     + torch.sum(self._embedding.weight ** 2, dim = 1)
                      - 2 * torch.matmul(flat_input, self._embedding.weight.t()))
         
         #BAYESIAN COMES IN HERE
+        #soft operations
+        smooth = 1./torch.exp(soft)**2
+        #expected shape: (b*q,K)
+        probs = soft_prob(distances, smooth)
+        #expected shape: (b*q,1,k)
+        probs = probs.unsqueeze(1)
+        #print('probs shape: ' + str(probs.shape))
+        #expected shape: (1,d,k)
+        codebook = self._ema_w.unsqueeze(0)
+        codebook = codebook.permute(0, 2, 1).contiguous()
+        #print('codebook shape: ' + str(codebook.shape))
+        #expected shape (b*q,d)
+        quantize_vector = (codebook*probs).sum(2)
+        quantized = torch.reshape(quantize_vector, inputs.shape)
 
         #encoding
         encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
@@ -201,8 +228,7 @@ class vector_quantizer(nn.Module):
         encodings.scatter_(1, encoding_indices, 1)
         
         #quantize and unflatten
-        quantized = torch.matmul(encodings, self._embedding.weight).view(input_shape)
-        
+        quantized = torch.matmul(encodings, self._embedding.weight).view(input_shape)        
         
         #use EMA to update the embedding vectors
         if self.training:
@@ -299,6 +325,7 @@ class model(nn.Module):
         return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings #encoded is redundant can be removed
 
 
+
 ## LOAD DATA & MODEL ##
 
 data = fasta_data(train_file)
@@ -385,18 +412,18 @@ try:
 
           f.savefig(output_file + "_loss.png")
       
-      if (i+1) > 5000:
-          if min(train_res_loss[-5000:-2500]) <= min(train_res_loss[-2500:]):
+      if (i+1) > 2000:
+          if min(train_res_loss[-2000:-1000]) <= min(train_res_loss[-2000:]):
             torch.save(vae, output_file + ".pt")
 
             embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
             
-            train_res_recon_error_smooth = savgol_filter(train_res_recon_error[10:], 201, 7)
+            train_res_loss_smooth = savgol_filter(train_res_loss[10:], 201, 7)
             train_res_perplexity_smooth = savgol_filter(train_res_perplexity[10:], 201 , 7)
 
             f = plt.figure(figsize=(16,8))
             ax = f.add_subplot(1,2,1)
-            ax.plot(train_res_recon_error_smooth)
+            ax.plot(train_res_loss_smooth)
             ax.set_yscale('log')
             ax.set_title('Smoothed NMSE.')
             ax.set_xlabel('iteration')
