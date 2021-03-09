@@ -127,7 +127,7 @@ class fasta_data(Dataset):
     ids = self.fasta_file[idx].id
     l = self.length
     if l == 0:
-      l = int(self.nn_perc)
+      l = 2000
     seqs = seq_inter(one_hot_seq(self.fasta_file[idx].seq), l)
     sample = {'id':ids, 'seq':seqs}
     return sample
