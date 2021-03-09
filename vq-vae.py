@@ -160,7 +160,7 @@ class encoder(nn.Module):
         return y, z
 
 def soft_prob(dist, smooth):
-  prob = torch.exp(-torch.multiply(dist, 0.5*smooth))/torch.sqrt(smooth)
+  prob = torch.exp(-torch.mul(dist, 0.5*smooth))/torch.sqrt(smooth)
   probs = prob/prob.sum(1).unsqueeze(1)
   return probs
 
