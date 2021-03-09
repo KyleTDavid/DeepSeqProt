@@ -150,14 +150,14 @@ class encoder(nn.Module):
         ])
 
         self.linit = nn.Linear(2000, bottleneck)
-        self.liny = nn.Linear(2000, int(num_embeddings/block_arch[-1]))
+        #self.liny = nn.Linear(2000, int(num_embeddings/block_arch[-1]))
         
     def forward(self, x):
         for i, block in enumerate(self.blocks) :            
             x = block(x)
         y = self.linit(x)
-        z = self.liny(x)
-        return y, z
+        #z = self.liny(x)
+        return y#, z
 
 def soft_prob(dist, smooth):
   prob = torch.exp(-torch.mul(dist, 0.5*smooth))/torch.sqrt(smooth)
@@ -188,12 +188,12 @@ class vector_quantizer(nn.Module):
 
     def forward(self, inputs):
         #convert inputs from BCL -> BLC
-        soft = inputs[1]
-        soft = soft.permute(0, 2, 1).contiguous()
-        soft = soft.view(-1, num_embeddings)
+        #soft = inputs[1]
+        #soft = soft.permute(0, 2, 1).contiguous()
+        #soft = soft.view(-1, num_embeddings)
         #print('soft shape' + str(soft.shape))
 
-        inputs = inputs[0]
+        inputs = inputs#[0]
 
         inputs = inputs.permute(0, 2, 1).contiguous()
         input_shape = inputs.shape
@@ -208,19 +208,19 @@ class vector_quantizer(nn.Module):
         
         #BAYESIAN COMES IN HERE
         #soft operations
-        smooth = 1./torch.exp(soft)**2
+        #smooth = 1./torch.exp(soft)**2
         #expected shape: (b*q,K)
-        probs = soft_prob(distances, smooth)
+        #probs = soft_prob(distances, smooth)
         #expected shape: (b*q,1,k)
-        probs = probs.unsqueeze(1)
+        #probs = probs.unsqueeze(1)
         #print('probs shape: ' + str(probs.shape))
         #expected shape: (1,d,k)
-        codebook = self._ema_w.unsqueeze(0)
-        codebook = codebook.permute(0, 2, 1).contiguous()
+        #codebook = self._ema_w.unsqueeze(0)
+        #codebook = codebook.permute(0, 2, 1).contiguous()
         #print('codebook shape: ' + str(codebook.shape))
         #expected shape (b*q,d)
-        quantize_vector = (codebook*probs).sum(2)
-        quantized = torch.reshape(quantize_vector, inputs.shape)
+        #quantize_vector = (codebook*probs).sum(2)
+        #quantized = torch.reshape(quantize_vector, inputs.shape)
 
         #encoding
         encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
