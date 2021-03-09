@@ -323,9 +323,7 @@ class model(nn.Module):
         x_recon = self._decoder(quantized)
             
         return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings #encoded is redundant can be removed
-
-
-
+    
 ## LOAD DATA & MODEL ##
 
 data = fasta_data(train_file)
@@ -333,7 +331,7 @@ training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
 sampling = 1
-embedding_dim = e_arch[-1] * batch_size
+embedding_dim = e_arch[-1]
 
 vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
               embedding_dim, commitment_cost, decay, trans, d_arch,
