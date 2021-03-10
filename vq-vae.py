@@ -1,3 +1,19 @@
+import resnet
+import os
+import time
+import torch
+import random
+import torch.nn as nn
+import numpy as np
+import pandas as pd
+from Bio import SeqIO
+from torch.utils.data import Dataset, DataLoader
+from scipy.interpolate import interp1d
+from scipy.signal import savgol_filter
+from math import ceil
+from functools import partial
+import matplotlib.pyplot as plt
+
 ## PARAMETERS & MODEL ##
 start_time = time.time()
 
@@ -287,6 +303,8 @@ vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vae.to(device)
+
+optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, amsgrad=False)
 
 ## TRAINING ##
 
