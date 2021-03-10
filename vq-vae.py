@@ -74,13 +74,6 @@ log.write("learning rate = " + str(learning_rate) + "\n")
 log.write("number of training updates = " + str(num_training_updates) + "\n\n")
 log.close()
 
-def add_noise(input, noise_level):
-    dims = input.shape
-    mean = torch.zeros(dims)
-    stddev = torch.full_like(mean, noise_level)
-    noise = torch.normal(mean, stddev)
-    return input + noise
-
 #one hot encode protein sequence
 def one_hot_seq(seq):
     aa_dict = {'A': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'K': 9, 'L': 10,
@@ -184,7 +177,6 @@ class vector_quantizer(nn.Module):
 
     def forward(self, inputs):
         #convert inputs from BCL -> BLC
-        inputs = add_noise(inputs, 0.01)
         inputs = inputs.permute(0, 2, 1).contiguous()
         input_shape = inputs.shape
         
