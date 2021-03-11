@@ -425,7 +425,7 @@ def gen_embed(fasta, model):
 
   for i, batch in enumerate(validation_loader):
 
-      validation_id = validation_data[i]['id'].split("|")[1]
+      validation_id = validation_data[i]['id']
 
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
@@ -468,7 +468,7 @@ uniprot_df = pd.DataFrame()
 
 headers = []
 for record in SeqIO.parse(test_file, 'fasta'):
-  headers.append(record.id.split("|")[1])
+  headers.append(record.id)
   
 for i in range(0, len(headers), 250):
   if i + 250 > len(headers):
