@@ -458,6 +458,16 @@ encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=Fa
 
 optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, amsgrad=False)
 
+#split test fasta by encoding 
+os.mkdir(output_suffix + "/fastas")
+for e in np.unique(encodings["Encoding"].tolist()):
+    
+    input_seq_iterator = SeqIO.parse(test_file, "fasta")
+    entries = encodings[encodings["Encoding"] == e]["Entry"].tolist()
+        
+    subfasta = [record for record in input_seq_iterator if record.id in entries]
+    SeqIO.write(subfasta, output_suffix + "/fastas/subfasta" + str(e) + ".fa", "fasta")
+
 ## VALIDATION ##
 
 #grab uniprot info from fasta
