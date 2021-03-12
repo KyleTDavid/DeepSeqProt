@@ -432,7 +432,7 @@ def gen_embed(fasta, model):
       vq_output_eval = model._encoder(validation_seqs)
       _, valid_quantize, _, e, embeddings, encodings = model._vq(vq_output_eval)
 
-      encoding = str(encodings.detach().cpu().numpy().flatten())
+      encoding = int(encodings.detach().cpu().numpy().flatten())
       embeds = valid_quantize.view(batch_size, -1).detach().cpu().numpy().flatten()
 
       output.append([validation_id, encoding] + list(embeds))
