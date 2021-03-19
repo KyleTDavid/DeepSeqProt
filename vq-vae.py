@@ -1,4 +1,3 @@
-import resnet
 import os
 import time
 import torch
@@ -17,61 +16,39 @@ import matplotlib.pyplot as plt
 ## PARAMETERS & MODEL ##
 start_time = time.time()
 
-#basic blocks
-kernel_size = 1
-dilation = 1
-conv = partial(resnet.conv_auto, kernel_size=kernel_size, dilation=dilation, bias=False)
-trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, bias=False)
-
 #encoder
-in_channels = 20
-e_arch = [128,64,32,16,8,4]
-e_depth = [1,1,1,1,1,1]
-bottleneck = 1
+arch = [2000, 1500, 1000, 500, 1]
 
 #vector quantizer        
 num_embeddings = 100
-commitment_cost = 0.01
+commitment_cost = 0.1
 decay = 0.9
-
-#decoder
-d_arch = [4,8,16,32,64,128]
-d_depth = [1,1,1,1,1,1]
 
 #training
 batch_size = 32
 learning_rate = 1e-3
-num_training_updates = 10000
+max_training_updates = 100000
 
 #inputs and outputs
-test_file = "saccharomyces_cerevisiae_proteome.fa"
-train_file = "saccharomycetales_proteomes.fa"
+test_file = "scerevisiae_test.fa"
+train_file = "scerevisiae_train.fa"
 output_suffix = "test"
-standard_length = 2000
 
 #write log
 os.mkdir(output_suffix)
 output_file = output_suffix + "/" + output_suffix
 log = open(output_file + "_log.txt", "w")
 log.write("PARAMETERS\n\n")
-log.write("Basic Block\n")
-log.write("kernel size = " + str(kernel_size) + "\n")
-log.write("dilation factor = " + str(dilation) + "\n\n")
 log.write("Encoder\n")
-log.write("encoder architecture = " + str(e_arch) + "\n")
-log.write("encoder depths = " + str(e_depth) + "\n\n")
-log.write("bottleneck = " + str(bottleneck) + "\n\n")
+log.write("encoder architecture = " + str(arch) + "\n")
 log.write("Vector Quantizer\n")
 log.write("number of embeddings = " + str(num_embeddings) + "\n")
 log.write("commitment cost = " + str(commitment_cost) + "\n")
 log.write("decay = " + str(decay) + "\n\n")
-log.write("Decoder\n")
-log.write("decoder architecture = " + str(d_arch) + "\n")
-log.write("decoder depths = " + str(d_depth) + "\n\n")
-log.write("Learning\n")
+log.write("Training\n")
 log.write("batch size = " + str(batch_size) + "\n")
 log.write("learning rate = " + str(learning_rate) + "\n")
-log.write("number of training updates = " + str(num_training_updates) + "\n\n")
+log.write("maximum training updates = " + str(max_training_updates) + "\n\n")
 log.close()
 
 #one hot encode protein sequence
@@ -105,15 +82,12 @@ def seq_inter(array, length):
   new_len = np.linspace(0, 1, length)
   return torch.tensor(inter_out(new_len),dtype=torch.float)
 
-#dataset for fasta files, interpolates one-hot sequnces to standard length (99th percentile by default)
+#dataset for fasta files, interpolates one-hot sequences to standard length
 class fasta_data(Dataset):
-  def __init__(self, fasta_file, length=0):
+  def __init__(self, fasta_file, length):
     #read fasta file
     self.fasta_file = list(SeqIO.parse(fasta_file, "fasta"))
     self.length = length
-    #get 99th percentile sequence length for interpolation (seems to preform slightly better than using the mean)
-    seq_lengths = [len(i) for i in self.fasta_file]
-    self.nn_perc = np.round(np.percentile(seq_lengths, 99))
   def __len__(self):
     return len(self.fasta_file)
   def __getitem__(self, idx):
@@ -121,36 +95,27 @@ class fasta_data(Dataset):
     if torch.is_tensor(idx):
       idx = idx.tolist()
     ids = self.fasta_file[idx].id
-    l = self.length
-    if l == 0:
-      l = standard_length
-    seqs = seq_inter(one_hot_seq(self.fasta_file[idx].seq), l)
+    seqs = seq_inter(one_hot_seq(self.fasta_file[idx].seq), self.length)
     sample = {'id':ids, 'seq':seqs}
     return sample
 
-#encoder architecture
+#encoder 
 class encoder(nn.Module):
-    def __init__(self, conv, in_channels=20, block_arch=[1024, 256, 64, 3], deepths=[2, 2, 2, 2], 
-                 block = resnet.basic_block, *args, **kwargs):
+    def __init__(self, arch=arch, *args, **kwargs):
         super().__init__()
-        self.block_arch = block_arch
         
-        self.in_out_block_sizes = list(zip(block_arch, block_arch[1:]))
-        self.blocks = nn.ModuleList([ 
-            resnet.layer(in_channels, block_arch[0], n=deepths[0], 
-                        block=block, conv=conv, *args, **kwargs),
-            *[resnet.layer(in_channels * block.expansion, 
-                          out_channels, n=n, conv=conv,
-                          block=block, *args, **kwargs) 
-            for (in_channels, out_channels), n in zip(self.in_out_block_sizes, deepths[1:])],   
+        self.blocks = nn.ModuleList([
+                      nn.Linear(arch[0], arch[1]),
+                      *[nn.Linear(input, output)
+                      for (input, output) in zip(arch[1:], arch[2:])]
         ])
 
-        self.linit = nn.Linear(standard_length, bottleneck)
-        
+        self.conv = nn.Conv1d(20,8,1,1)
+
     def forward(self, x):
         for i, block in enumerate(self.blocks) :            
             x = block(x)
-        x = self.linit(x)
+        #x = self.conv(x)
         return x
 
 #vector quantizer
@@ -200,7 +165,6 @@ class vector_quantizer(nn.Module):
             self._ema_cluster_size = self._ema_cluster_size * self._decay + \
             (1 - self._decay) * torch.sum(encodings, 0)
             
-            
             #laplace smoothing of cluster size
             n = torch.sum(self._ema_cluster_size.data)
             self._ema_cluster_size = (
@@ -221,54 +185,40 @@ class vector_quantizer(nn.Module):
         avg_probs = torch.mean(encodings, dim = 0)
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
         
-        #convert quantized from BLC -> BCL
-        return loss, quantized.permute(0,2,1).contiguous(), perplexity, encodings, self._embedding.weight.data, encoding_indices
+        #convert quantized from BLC -> BCL #clean this
+        return quantized.permute(0,2,1).contiguous(), loss, perplexity, self._embedding.weight.data, encoding_indices
 
-#decoder architecture
+#decoder 
 class decoder(nn.Module):
-    def __init__(self, conv, block_arch=[3, 64, 256, 1024], deepths=[2, 2, 2, 2], 
-                 block=resnet.basic_block, *args, **kwargs):
+    def __init__(self, arch=arch, *args, **kwargs):
         super().__init__()
 
-        self.block_arch = block_arch
-        
-        self.linit = nn.Linear(bottleneck, standard_length)
+        self.arch = arch[::-1]
 
-        self.in_out_block_sizes = list(zip(block_arch, block_arch[1:]))
-        self.blocks = nn.ModuleList([ 
-            resnet.layer(block_arch[0], block_arch[0], n=deepths[0], 
-                        block=block, conv=conv, *args, **kwargs),
-            *[resnet.layer(in_channels * block.expansion, 
-                          out_channels, n=n, conv=conv,
-                          block=block, *args, **kwargs) 
-            for (in_channels, out_channels), n in zip(self.in_out_block_sizes, deepths[1:])],
+        self.deconv = nn.ConvTranspose1d(8,20,1,1)
+
+        self.blocks = nn.ModuleList([
+                      nn.Linear(self.arch[0], self.arch[1]),
+                      *[nn.Linear(input, output)
+                      for (input, output) in zip(self.arch[1:], self.arch[2:])]
         ])
-        
-        self.gate = nn.Sequential(
-            nn.Conv1d(block_arch[-1], 20, kernel_size=1, stride=1, padding=0, bias=False), 
-            nn.ReLU(),
-        )
-        
+
     def forward(self, x):
-        x = self.linit(x)
-        for i, block in enumerate(self.blocks) :
+        #x = self.deconv(x)
+
+        for i, block in enumerate(self.blocks) :            
             x = block(x)
-        x = self.gate(x)
         return x
 
 #model
 class model(nn.Module):
-    def __init__(self, conv, in_channels, e_arch,
-                 e_depth, num_embeddings, embedding_dim,
-                 commitment_cost, decay, trans, 
-                 d_arch, d_depth, sampling, epsilon=1e-5):
+    def __init__(self, arch,
+                 num_embeddings, embedding_dim,
+                 commitment_cost, decay, 
+                 epsilon=1e-5):
         super(model, self).__init__()
         
-        self._encoder = encoder(conv = conv,
-                                    in_channels = in_channels,
-                                    block_arch = e_arch,
-                                    deepths = e_depth,
-                                    sampling = sampling)
+        self._encoder = encoder(arch = arch)
         
         self._vq = vector_quantizer(num_embeddings = num_embeddings,
                                     embedding_dim = embedding_dim,
@@ -276,30 +226,25 @@ class model(nn.Module):
                                     decay = decay,
                                     epsilon = epsilon)
         
-        self._decoder = decoder(conv = trans,
-                                    block_arch = d_arch,
-                                    deepths = d_depth,
-                                    sampling = sampling)
+        self._decoder = decoder(arch = arch)
+        
         
     def forward(self, x):
         encoded = self._encoder(x)
-        loss, quantized, perplexity, _, embeddings, encodings = self._vq(encoded)
+        quantized, loss, perplexity, encodings, embeddings = self._vq(encoded)
         x_recon = self._decoder(quantized)
             
-        return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings #encoded is redundant can be removed
+        return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings
 
 ## LOAD DATA & MODEL ##
 
-data = fasta_data(train_file)
+data = fasta_data(train_file, arch[0])
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
-sampling = 1
-embedding_dim = e_arch[-1] * bottleneck
+embedding_dim = 20 * arch[-1]
 
-vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
-              embedding_dim, commitment_cost, decay, trans, d_arch,
-              d_depth, sampling)
+vae = model(arch, num_embeddings, embedding_dim, commitment_cost, decay)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vae.to(device)
@@ -324,7 +269,7 @@ embeddings_list = list()
 class BreakIt(Exception): pass
 
 try:
-  for i in range(num_training_updates):
+  for i in range(max_training_updates):
       batch = next(iter(training_loader))
       batch_data = batch['seq']
       batch_data = batch_data.to(device)
@@ -357,8 +302,8 @@ try:
 
           embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
           
-          train_res_recon_error_smooth = savgol_filter(train_res_recon_error[10:], 51, 7)
-          train_res_perplexity_smooth = savgol_filter(train_res_perplexity[10:], 51 , 7)
+          train_res_recon_error_smooth = savgol_filter(train_res_recon_error[100:], 201, 7)
+          train_res_perplexity_smooth = savgol_filter(train_res_perplexity[100:], 201 , 7)
 
           f = plt.figure(figsize=(16,8))
           ax = f.add_subplot(1,2,1)
@@ -374,14 +319,12 @@ try:
 
           f.savefig(output_file + "_loss.png")
       
-      if (i+1) > 4000:
-          if min(train_res_loss[-4000:-2000]) <= min(train_res_loss[-2000:]):
+      if (i+1) > 2000:
+          if np.mean(train_res_loss[-2000:-1000]) <= np.mean(train_res_loss[-1000:]):
             torch.save(vae, output_file + ".pt")
-
-            embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
-            
-            train_res_loss_smooth = savgol_filter(train_res_loss[10:], 201, 7)
-            train_res_perplexity_smooth = savgol_filter(train_res_perplexity[10:], 201 , 7)
+                        
+            train_res_loss_smooth = savgol_filter(train_res_loss[100:], 201, 7)
+            train_res_perplexity_smooth = savgol_filter(train_res_perplexity[100:], 201 , 7)
 
             f = plt.figure(figsize=(16,8))
             ax = f.add_subplot(1,2,1)
@@ -404,6 +347,7 @@ except BreakIt:
 log = open(output_file + "_log.txt", "a")
 log.close()
 
+
 ## TESTING ##
 
 #get encoding for each sequence in test fasta
@@ -417,7 +361,7 @@ def gen_embed(fasta, model):
   model = torch.load(model, map_location=device)
   model.eval()
 
-  validation_data = fasta_data(fasta, standard_length)
+  validation_data = fasta_data(fasta, arch[0])
   validation_loader = DataLoader(validation_data, batch_size = batch_size, shuffle = False)
 
   output = []
@@ -425,14 +369,14 @@ def gen_embed(fasta, model):
 
   for i, batch in enumerate(validation_loader):
 
-      validation_id = validation_data[i]['id']
+      validation_id = validation_data[i]['id'].split('|')[1]
 
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
       vq_output_eval = model._encoder(validation_seqs)
-      _, valid_quantize, _, e, embeddings, encodings = model._vq(vq_output_eval)
+      valid_quantize, loss, perplexity, encodings, embeddings = model._vq(vq_output_eval)
 
-      encoding = int(encodings.detach().cpu().numpy().flatten())
+      encoding = int(embeddings.detach().cpu().numpy().flatten())
       embeds = valid_quantize.view(batch_size, -1).detach().cpu().numpy().flatten()
 
       output.append([validation_id, encoding] + list(embeds))
@@ -456,51 +400,10 @@ model_file = output_file + ".pt"
 encodings = gen_embed(test_file, model_file)
 encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
-optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, amsgrad=False)
-
-#split test fasta by encoding 
-os.mkdir(output_suffix + "/fastas")
-for e in np.unique(encodings["Encoding"].tolist()):
-    
-    input_seq_iterator = SeqIO.parse(test_file, "fasta")
-    entries = encodings[encodings["Encoding"] == e]["Entry"].tolist()
-        
-    subfasta = [record for record in input_seq_iterator if record.id in entries]
-    SeqIO.write(subfasta, output_suffix + "/fastas/subfasta" + str(e) + ".fa", "fasta")
-
 ## VALIDATION ##
-
-#grab uniprot info from fasta
-import requests as r
-from io import StringIO
-
-uniprot_df = pd.DataFrame()
-
-headers = []
-for record in SeqIO.parse(test_file, 'fasta'):
-  headers.append(record.id)
-  
-for i in range(0, len(headers), 250):
-  if i + 250 > len(headers):
-    batch = headers[i:-1]
-  else:
-    batch = headers[i:i+250]
-
-  id_string = ""
-
-  for id in batch:
-    id_string = id_string + "id:" + id + " + OR + "
-
-  id_string = id_string[:-7]
-
-  Url="https://www.uniprot.org/uniprot/?query=" + id_string + "&format=tab&columns=id,organism,families,go-id"
-
-  response = r.post(Url)
-  tmp_df = pd.read_csv(StringIO(response.text), sep = '\t')
-  uniprot_df = pd.concat([uniprot_df, tmp_df])
-
+uniprot_df = pd.read_csv("uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
 df = encodings.iloc[:, 0:2].merge(uniprot_df)
-
+df['n'] = df.groupby('Encoding')['Encoding'].transform('count')
 results = []
 
 #add uniprot annotations
@@ -523,13 +426,12 @@ results.append(["family completeness",
                 group.apply(lambda x: x.value_counts().head(1)).sum() / group.size().sum()])
 
 #run gene ontology enrichment analysis
-from goatools.base import download_go_basic_obo
 # Get http://geneontology.org/ontology/go-basic.obo
 from goatools.base import download_go_basic_obo
 obo_fname = download_go_basic_obo()
 
 df['Gene ontology IDs'] = df['Gene ontology IDs'].str.replace(' ','')
-df.drop(['Encoding', 'Organism', 'Protein families'], axis=1).to_csv("GOA.txt", sep='\t', header=False, index=False)
+df.drop(['Encoding', 'Organism', 'Protein families', 'n'], axis=1).to_csv("GOA.txt", sep='\t', header=False, index=False)
 
 from goatools.anno.idtogos_reader import IdToGosReader
 objanno = IdToGosReader("GOA.txt")
@@ -548,9 +450,7 @@ goeaobj = GOEnrichmentStudy(
         methods = ['fdr_bh']) # default multipletest correction method
 
 gos = []
-#sort by size
-#for e in encodings.sort_values('n', ascending=False).index:
-for e in set(encodings.Encoding):
+for e in set(df[df['n']>=2]['Encoding']):
   goea_results = goeaobj.run_study(list(df[df['Encoding']==e].Entry))
   for r in goea_results:
       if (r.p_fdr_bh < 0.001) & (r.enrichment=='e') :
@@ -561,6 +461,14 @@ for e in set(encodings.Encoding):
         gos.append([id, name, cat, e, members])
 
 godf = pd.DataFrame(gos, columns=['id', 'name', 'category', 'encoding', 'members'])
+godf['unique?'] = ~godf['name'].duplicated(keep=False)
+godf['representation'] = godf.members.apply (lambda x: len(x))
+godf['representation'] = godf.apply (lambda row: row.representation / int(np.unique(df[df.Encoding==row.encoding]['n'])), axis=1)
+
+
+#what % of encodings have at least one significant GO?
+results.append(["significant categories",
+                (len(set(godf.encoding)) / len(set(df.Encoding)))])
 
 members = [item for sublist in godf.members for item in sublist]
 
@@ -570,12 +478,15 @@ results.append(["GO accuracy",
 
 #how many members have at least one significant unique GO?
 v = godf['name'].value_counts()
-uniqgodf = godf[godf['name'].isin(v.index[v.lt(2)])]
+uniqgodf = godf[godf['unique?']==True]
 
 uniqmembers = [item for sublist in uniqgodf.members for item in sublist]
 
 results.append(["unique GO accuracy",
                 len(set(uniqmembers)) / len(df[df["Gene ontology IDs"].notnull()].Entry)])
 
-resultsdf = pd.DataFrame(results)
+godf.drop(['members'], axis=1).to_csv(output_file + "_GO.txt", sep='\t', header=True, index=False)
+
 resultsdf.to_csv(output_file + "_report.txt", sep='\t', header=False, index=False)
+
+
