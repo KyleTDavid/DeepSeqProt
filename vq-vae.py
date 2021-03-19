@@ -369,7 +369,7 @@ def gen_embed(fasta, model):
 
   for i, batch in enumerate(validation_loader):
 
-      validation_id = validation_data[i]['id'].split('|')[1]
+      validation_id = validation_data[i]['id']
 
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
