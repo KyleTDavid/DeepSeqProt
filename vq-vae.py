@@ -401,13 +401,12 @@ encodings = gen_embed(test_file, model_file)
 encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 ## VALIDATION ##
-uniprot_df = pd.read_csv("uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
+uniprot_df = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
 df = encodings.iloc[:, 0:2].merge(uniprot_df)
 df['n'] = df.groupby('Encoding')['Encoding'].transform('count')
 results = []
 
 #add uniprot annotations
-#df = encodings.iloc[:, 0:2].merge(uniprot_df)
 df.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 results.append(["# of categories", len(set(df.Encoding))])
