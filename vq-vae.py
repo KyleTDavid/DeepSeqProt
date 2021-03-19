@@ -486,6 +486,7 @@ results.append(["unique GO accuracy",
 
 godf.drop(['members'], axis=1).to_csv(output_file + "_GO.txt", sep='\t', header=True, index=False)
 
+resultsdf = pd.DataFrame(results)
 resultsdf.to_csv(output_file + "_report.txt", sep='\t', header=False, index=False)
 
 
