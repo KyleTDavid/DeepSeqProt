@@ -401,7 +401,7 @@ encodings = gen_embed(test_file, model_file)
 encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 ## VALIDATION ##
-uniprot_df = pd.read_csv("uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
+uniprot_df = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
 df = encodings.iloc[:, 0:2].merge(uniprot_df)
 df['n'] = df.groupby('Encoding')['Encoding'].transform('count')
 results = []
@@ -489,4 +489,12 @@ godf.drop(['members'], axis=1).to_csv(output_file + "_GO.txt", sep='\t', header=
 
 resultsdf.to_csv(output_file + "_report.txt", sep='\t', header=False, index=False)
 
+cols = []
+cols.append(encodings.groupby('Encoding')['Encoding'].size())
+for dim in list(encodings.columns)[2:]:
+  cols.append(encodings.groupby('Encoding')[dim].mean())
 
+coords = pd.concat(cols, axis =1)
+coords = coords.rename(columns={'Encoding':'n'})
+
+encodings.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
