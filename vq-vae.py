@@ -369,7 +369,7 @@ def gen_embed(fasta, model):
 
   for i, batch in enumerate(validation_loader):
 
-      validation_id = validation_data[i]['id'].split('|')[1]
+      validation_id = validation_data[i]['id']
 
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
@@ -407,7 +407,6 @@ df['n'] = df.groupby('Encoding')['Encoding'].transform('count')
 results = []
 
 #add uniprot annotations
-#df = encodings.iloc[:, 0:2].merge(uniprot_df)
 df.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 results.append(["# of categories", len(set(df.Encoding))])
@@ -487,6 +486,7 @@ results.append(["unique GO accuracy",
 
 godf.drop(['members'], axis=1).to_csv(output_file + "_GO.txt", sep='\t', header=True, index=False)
 
+resultsdf = pd.DataFrame(results)
 resultsdf.to_csv(output_file + "_report.txt", sep='\t', header=False, index=False)
 
 cols = []
