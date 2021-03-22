@@ -497,4 +497,4 @@ for dim in list(encodings.columns)[2:]:
 coords = pd.concat(cols, axis =1)
 coords = coords.rename(columns={'Encoding':'n'})
 
-encodings.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
+coords.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
