@@ -293,13 +293,16 @@ class model(nn.Module):
 
 ## LOAD DATA & MODEL ##
 
-data = fasta_data(train_file, arch[0])
+data = fasta_data(train_file)
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
-embedding_dim = 20 * arch[-1]
+sampling = 1
+embedding_dim = e_arch[-1] * bottleneck
 
-vae = model(arch, num_embeddings, embedding_dim, commitment_cost, decay)
+vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
+              embedding_dim, commitment_cost, decay, trans, d_arch,
+              d_depth, sampling)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vae.to(device)
@@ -416,7 +419,7 @@ def gen_embed(fasta, model):
   model = torch.load(model, map_location=device)
   model.eval()
 
-  validation_data = fasta_data(fasta, arch[0])
+  validation_data = fasta_data(fasta, standard_length)
   validation_loader = DataLoader(validation_data, batch_size = batch_size, shuffle = False)
 
   output = []
@@ -429,9 +432,9 @@ def gen_embed(fasta, model):
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
       vq_output_eval = model._encoder(validation_seqs)
-      valid_quantize, loss, perplexity, encodings, embeddings = model._vq(vq_output_eval)
+      _, valid_quantize, _, e, embeddings, encodings = model._vq(vq_output_eval)
 
-      encoding = int(embeddings.detach().cpu().numpy().flatten())
+      encoding = int(encodings.detach().cpu().numpy().flatten())
       embeds = valid_quantize.view(batch_size, -1).detach().cpu().numpy().flatten()
 
       output.append([validation_id, encoding] + list(embeds))
