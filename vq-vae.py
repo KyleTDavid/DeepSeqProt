@@ -20,7 +20,7 @@ start_time = time.time()
 arch = [2000, 1500, 1000, 500, 1]
 
 #vector quantizer        
-num_embeddings = 100
+num_embeddings = 1000
 commitment_cost = 0.1
 decay = 0.9
 
@@ -30,9 +30,9 @@ learning_rate = 1e-3
 max_training_updates = 100000
 
 #inputs and outputs
-test_file = "scerevisiae_test.fa"
-train_file = "scerevisiae_train.fa"
-output_suffix = "test"
+test_file = "data/vertebrata/vertebrata_test.fa"
+train_file = "data/vertebrata/vertebrata_test.fa"
+output_suffix = "vertebrata_test_2d"
 
 #write log
 os.mkdir(output_suffix)
@@ -412,7 +412,7 @@ coords.insert(loc=0, column='Encoding', value=coords.index)
 encodings.to_csv(output_file + "_coordinates.txt", sep='\t', header=False, index=False)
 
 #incorporate uniprot info
-uniprot_ref = pd.read_csv("uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
+uniprot_ref = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
 uniprot_df = encodings.iloc[:, 0:2].merge(uniprot_df)
 uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
 results = []
