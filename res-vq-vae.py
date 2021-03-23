@@ -25,8 +25,8 @@ trans = partial(resnet.trans_auto, kernel_size=kernel_size, dilation=dilation, b
 
 #encoder
 in_channels = 20
-e_arch = [1750, 1500, 1250, 1000, 750, 500, 250]
-e_depth = [1,1,1,1,1,1,1]
+e_arch = [128, 64, 32, 16, 8]
+e_depth = [1,1,1,1,1]
 bottleneck = 1
 
 #vector quantizer        
@@ -35,13 +35,13 @@ commitment_cost = 0.1
 decay = 0.9
 
 #decoder
-d_arch = [250, 500, 750, 1000, 1250, 1500, 1750]
-d_depth = [1,1,1,1,1,1,1]
+d_arch = [8, 16,32, 64, 128]
+d_depth = [1,1,1,1,1]
 
 #training
 batch_size = 32
 learning_rate = 1e-3
-num_training_updates = 100000
+max_training_updates = 100000
 
 #inputs and outputs
 test_file = "scerevisiae_test.fa"
@@ -71,7 +71,7 @@ log.write("decoder depths = " + str(d_depth) + "\n\n")
 log.write("Learning\n")
 log.write("batch size = " + str(batch_size) + "\n")
 log.write("learning rate = " + str(learning_rate) + "\n")
-log.write("number of training updates = " + str(num_training_updates) + "\n\n")
+log.write("max training updates = " + str(max_training_updates) + "\n\n")
 log.close()
 
 #one hot encode protein sequence
@@ -293,16 +293,13 @@ class model(nn.Module):
 
 ## LOAD DATA & MODEL ##
 
-data = fasta_data(train_file)
+data = fasta_data(train_file, arch[0])
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
-sampling = 1
-embedding_dim = e_arch[-1] * bottleneck
+embedding_dim = 20 * arch[-1]
 
-vae = model(conv, in_channels, e_arch, e_depth, num_embeddings,
-              embedding_dim, commitment_cost, decay, trans, d_arch,
-              d_depth, sampling)
+vae = model(arch, num_embeddings, embedding_dim, commitment_cost, decay)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vae.to(device)
@@ -419,7 +416,7 @@ def gen_embed(fasta, model):
   model = torch.load(model, map_location=device)
   model.eval()
 
-  validation_data = fasta_data(fasta, standard_length)
+  validation_data = fasta_data(fasta, arch[0])
   validation_loader = DataLoader(validation_data, batch_size = batch_size, shuffle = False)
 
   output = []
@@ -432,9 +429,9 @@ def gen_embed(fasta, model):
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
       vq_output_eval = model._encoder(validation_seqs)
-      _, valid_quantize, _, e, embeddings, encodings = model._vq(vq_output_eval)
+      valid_quantize, loss, perplexity, encodings, embeddings = model._vq(vq_output_eval)
 
-      encoding = int(encodings.detach().cpu().numpy().flatten())
+      encoding = int(embeddings.detach().cpu().numpy().flatten())
       embeds = valid_quantize.view(batch_size, -1).detach().cpu().numpy().flatten()
 
       output.append([validation_id, encoding] + list(embeds))
