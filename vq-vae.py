@@ -451,7 +451,7 @@ obodag = GODag("go-basic.obo")
 
 from goatools.go_enrichment import GOEnrichmentStudy
 goeaobj = GOEnrichmentStudy(
-        df.Entry, 
+        uniprot_df.Entry, 
         ns2assoc, # geneid/GO associations
         obodag, # Ontologies
         propagate_counts = False,
@@ -459,8 +459,8 @@ goeaobj = GOEnrichmentStudy(
         methods = ['fdr_bh']) # default multipletest correction method
 
 gos = []
-for e in set(df[df['n']>=2]['Encoding']):
-  goea_results = goeaobj.run_study(list(df[df['Encoding']==e].Entry))
+for e in set(uniprot_df[uniprot_df['n']>=2]['Encoding']):
+  goea_results = goeaobj.run_study(list(uniprot_df[uniprot_df['Encoding']==e].Entry))
   for r in goea_results:
       if (r.p_fdr_bh < 0.001) & (r.enrichment=='e') :
         id = r.goterm.id
