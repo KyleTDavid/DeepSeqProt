@@ -398,22 +398,32 @@ def gen_embed(fasta, model):
   
 model_file = output_file + ".pt"
 encodings = gen_embed(test_file, model_file)
-encodings.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 ## VALIDATION ##
-uniprot_df = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
-df = encodings.iloc[:, 0:2].merge(uniprot_df)
-df['n'] = df.groupby('Encoding')['Encoding'].transform('count')
+
+#aggregate coordinates of each encoding for plotting
+cols = []
+cols.append(encodings.groupby('Encoding')['Encoding'].size().rename("n"))
+for dim in list(encodings.columns)[2:]:
+  cols.append(encodings.groupby('Encoding')[dim].mean())
+coords = pd.concat(cols, axis =1)
+coords.insert(loc=0, column='Encoding', value=coords.index)
+
+encodings.to_csv(output_file + "_coordinates.txt", sep='\t', header=False, index=False)
+
+#incorporate uniprot info
+uniprot_ref = pd.read_csv("uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
+uniprot_df = encodings.iloc[:, 0:2].merge(uniprot_df)
+uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
 results = []
 
-#add uniprot annotations
-df.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
+uniprot_df.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
-results.append(["# of categories", len(set(df.Encoding))])
+results.append(["# of categories", len(set(uniprot_df.Encoding))])
 
 #only look at protein families with at least 2 members, group by family
-v = df['Protein families'].value_counts()
-fams = df[df['Protein families'].isin(v.index[v.gt(1)])]
+v = uniprot_df['Protein families'].value_counts()
+fams = uniprot_df[uniprot_df['Protein families'].isin(v.index[v.gt(1)])]
 group = fams.groupby('Protein families')['Encoding']
 
 #percentage of complete families (all members have the same encoding)
@@ -429,8 +439,8 @@ results.append(["family completeness",
 from goatools.base import download_go_basic_obo
 obo_fname = download_go_basic_obo()
 
-df['Gene ontology IDs'] = df['Gene ontology IDs'].str.replace(' ','')
-df.drop(['Encoding', 'Organism', 'Protein families', 'n'], axis=1).to_csv("GOA.txt", sep='\t', header=False, index=False)
+uniprot_df['Gene ontology IDs'] = uniprot_df['Gene ontology IDs'].str.replace(' ','')
+uniprot_df.drop(['Encoding', 'Organism', 'Protein families', 'n'], axis=1).to_csv("GOA.txt", sep='\t', header=False, index=False)
 
 from goatools.anno.idtogos_reader import IdToGosReader
 objanno = IdToGosReader("GOA.txt")
@@ -462,18 +472,17 @@ for e in set(df[df['n']>=2]['Encoding']):
 godf = pd.DataFrame(gos, columns=['id', 'name', 'category', 'encoding', 'members'])
 godf['unique?'] = ~godf['name'].duplicated(keep=False)
 godf['representation'] = godf.members.apply (lambda x: len(x))
-godf['representation'] = godf.apply (lambda row: row.representation / int(np.unique(df[df.Encoding==row.encoding]['n'])), axis=1)
-
+godf['representation'] = godf.apply (lambda row: row.representation / int(np.unique(uniprot_df[uniprot_df.Encoding==row.encoding]['n'])), axis=1)
 
 #what % of encodings have at least one significant GO?
-results.append(["significant categories",
-                (len(set(godf.encoding)) / len(set(df.Encoding)))])
+results.append(["good categories",
+                (len(set(godf.encoding)) / len(set(uniprot_df.Encoding)))])
 
 members = [item for sublist in godf.members for item in sublist]
 
 #how many members have at least one significant GO?
 results.append(["GO accuracy",
-                len(set(members)) / len(df[df["Gene ontology IDs"].notnull()].Entry)])
+                len(set(members)) / len(uniprot_df[uniprot_df["Gene ontology IDs"].notnull()].Entry)])
 
 #how many members have at least one significant unique GO?
 v = godf['name'].value_counts()
@@ -482,19 +491,9 @@ uniqgodf = godf[godf['unique?']==True]
 uniqmembers = [item for sublist in uniqgodf.members for item in sublist]
 
 results.append(["unique GO accuracy",
-                len(set(uniqmembers)) / len(df[df["Gene ontology IDs"].notnull()].Entry)])
+                len(set(uniqmembers)) / len(uniprot_df[uniprot_df["Gene ontology IDs"].notnull()].Entry)])
 
 godf.drop(['members'], axis=1).to_csv(output_file + "_GO.txt", sep='\t', header=True, index=False)
 
 resultsdf = pd.DataFrame(results)
 resultsdf.to_csv(output_file + "_report.txt", sep='\t', header=False, index=False)
-
-cols = []
-cols.append(encodings.groupby('Encoding')['Encoding'].size())
-for dim in list(encodings.columns)[2:]:
-  cols.append(encodings.groupby('Encoding')[dim].mean())
-
-coords = pd.concat(cols, axis =1)
-coords = coords.rename(columns={'Encoding':'n'})
-
-coords.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
