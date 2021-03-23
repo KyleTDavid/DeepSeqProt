@@ -409,7 +409,7 @@ for dim in list(encodings.columns)[2:]:
 coords = pd.concat(cols, axis =1)
 coords.insert(loc=0, column='Encoding', value=coords.index)
 
-encodings.to_csv(output_file + "_coordinates.txt", sep='\t', header=False, index=False)
+coords.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
 
 #incorporate uniprot info
 uniprot_ref = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
