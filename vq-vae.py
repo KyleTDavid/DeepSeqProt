@@ -413,7 +413,7 @@ encodings.to_csv(output_file + "_coordinates.txt", sep='\t', header=False, index
 
 #incorporate uniprot info
 uniprot_ref = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
-uniprot_df = encodings.iloc[:, 0:2].merge(uniprot_df)
+uniprot_df = encodings.iloc[:, 0:2].merge(uniprot_ref)
 uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
 results = []
 
