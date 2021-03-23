@@ -110,12 +110,12 @@ class encoder(nn.Module):
                       for (input, output) in zip(arch[1:], arch[2:])]
         ])
 
-        self.conv = nn.Conv1d(20,8,1,1)
+        self.conv = nn.Conv1d(20,2,1,1)
 
     def forward(self, x):
         for i, block in enumerate(self.blocks) :            
             x = block(x)
-        #x = self.conv(x)
+        x = self.conv(x)
         return x
 
 #vector quantizer
@@ -195,7 +195,7 @@ class decoder(nn.Module):
 
         self.arch = arch[::-1]
 
-        self.deconv = nn.ConvTranspose1d(8,20,1,1)
+        self.deconv = nn.ConvTranspose1d(2,20,1,1)
 
         self.blocks = nn.ModuleList([
                       nn.Linear(self.arch[0], self.arch[1]),
@@ -204,7 +204,7 @@ class decoder(nn.Module):
         ])
 
     def forward(self, x):
-        #x = self.deconv(x)
+        x = self.deconv(x)
 
         for i, block in enumerate(self.blocks) :            
             x = block(x)
@@ -242,7 +242,7 @@ data = fasta_data(train_file, arch[0])
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
-embedding_dim = 20 * arch[-1]
+embedding_dim = 2 * arch[-1]
 
 vae = model(arch, num_embeddings, embedding_dim, commitment_cost, decay)
 
