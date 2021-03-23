@@ -44,9 +44,9 @@ learning_rate = 1e-3
 num_training_updates = 100000
 
 #inputs and outputs
-test_file = "scerevisiae_test.fa"
-train_file = "scerevisiae_test.fa"
-output_suffix = "test"
+test_file = "data/vertebrata/vertebrata_test.fa"
+train_file = "data/vertebrata/vertebrata_test.fa"
+output_suffix = "restest"
 standard_length = 2000
 
 #write log
