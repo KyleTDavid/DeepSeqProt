@@ -293,7 +293,7 @@ class model(nn.Module):
 
 ## LOAD DATA & MODEL ##
 
-data = fasta_data(train_file, arch[0])
+data = fasta_data(train_file, standard_length)
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
