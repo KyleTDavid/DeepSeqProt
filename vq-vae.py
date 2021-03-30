@@ -26,13 +26,13 @@ decay = 0.9
 
 #training
 batch_size = 32
-learning_rate = 1e-3
+learning_rate = 1e-5
 max_training_updates = 100000
 
 #inputs and outputs
-test_file = "data/vertebrata/vertebrata_test.fa"
-train_file = "data/vertebrata/vertebrata_test.fa"
-output_suffix = "vertebrata_test_2d"
+test_file = "data/mammalia/mammalia_test.fa"
+train_file = "data/mammalia/mammalia_train.fa"
+output_suffix = "mammalia_slowertrain2"
 
 #write log
 os.mkdir(output_suffix)
@@ -115,7 +115,7 @@ class encoder(nn.Module):
     def forward(self, x):
         for i, block in enumerate(self.blocks) :            
             x = block(x)
-        x = self.conv(x)
+        #x = self.conv(x)
         return x
 
 #vector quantizer
@@ -204,7 +204,7 @@ class decoder(nn.Module):
         ])
 
     def forward(self, x):
-        x = self.deconv(x)
+        #x = self.deconv(x)
 
         for i, block in enumerate(self.blocks) :            
             x = block(x)
@@ -242,7 +242,7 @@ data = fasta_data(train_file, arch[0])
 training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
 
 data_var = 0.032 #*32/20 #average variance per sequence? hardcoded for now because I'm impatient
-embedding_dim = 2 * arch[-1]
+embedding_dim = 20 * arch[-1]
 
 vae = model(arch, num_embeddings, embedding_dim, commitment_cost, decay)
 
@@ -320,7 +320,7 @@ try:
           f.savefig(output_file + "_loss.png")
       
       if (i+1) > 2000:
-          if np.mean(train_res_loss[-2000:-1000]) <= np.mean(train_res_loss[-1000:]):
+          if np.mean(train_res_loss[-5000:-2500]) <= np.mean(train_res_loss[-2500:]):
             torch.save(vae, output_file + ".pt")
                         
             train_res_loss_smooth = savgol_filter(train_res_loss[100:], 201, 7)
@@ -409,7 +409,7 @@ for dim in list(encodings.columns)[2:]:
 coords = pd.concat(cols, axis =1)
 coords.insert(loc=0, column='Encoding', value=coords.index)
 
-encodings.to_csv(output_file + "_coordinates.txt", sep='\t', header=False, index=False)
+coords.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
 
 #incorporate uniprot info
 uniprot_ref = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
@@ -462,7 +462,7 @@ gos = []
 for e in set(uniprot_df[uniprot_df['n']>=2]['Encoding']):
   goea_results = goeaobj.run_study(list(uniprot_df[uniprot_df['Encoding']==e].Entry))
   for r in goea_results:
-      if (r.p_fdr_bh < 0.001) & (r.enrichment=='e') :
+      if (r.enrichment=='e') & (r.p_fdr_bh < 0.001) :
         id = r.goterm.id
         name = r.name
         cat = r.goterm.namespace
