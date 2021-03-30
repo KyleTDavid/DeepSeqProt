@@ -2,7 +2,7 @@ import pandas as pd
 import sys
 
 uniprot_ref = pd.read_csv(sys.argv[1], sep='\t')
-results = pd.read_csv(sys.argv[2], sep ='\t', skiprows=(0), names=['Entry', 'Encoding', 'Organism', 'Protein Families', 'Gene Ontology IDs'])
+results = pd.read_csv(sys.argv[2], sep ='\t', skiprows=(0), names=['Entry', 'Encoding'])
 
 df = results.iloc[:, 0:2].merge(uniprot_ref)
 df['n'] = df.groupby('Encoding')['Encoding'].transform('count')
