@@ -2,7 +2,7 @@ import pandas as pd
 import sys
 
 uniprot_ref = pd.read_csv(sys.argv[1], sep='\t')
-results = pd.read_csv(sys.argv[2], sep ='\t', skiprows=(0), names=['Entry', 'Encoding', 'Organism', 'Protein Families', 'Gene Ontology IDs'])
+results = pd.read_csv(sys.argv[2], sep ='\t', skiprows=(0), names=['Entry', 'Encoding'])
 
 df = results.iloc[:, 0:2].merge(uniprot_ref)
 df['n'] = df.groupby('Encoding')['Encoding'].transform('count')
@@ -88,7 +88,7 @@ results.append(["# of Good Categories",
 				len(set(uniqgodf['encoding']))])
 
 resultsdf = pd.DataFrame(results)
-resultsdf.to_csv(sys.argv[2].replace("clusters", "report"), sep='\t', header=False, index=False)
+resultsdf.to_csv(sys.argv[2].replace("results", "report"), sep='\t', header=False, index=False)
 
 uniqgodf['member count'] = len(uniqgodf.members)
-godf.to_csv(sys.argv[2].replace("clusters", "GO"), sep='\t', header=False, index=False)
+godf.to_csv(sys.argv[2].replace("results", "GO"), sep='\t', header=False, index=False)
