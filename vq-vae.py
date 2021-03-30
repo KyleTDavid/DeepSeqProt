@@ -266,7 +266,7 @@ log.close()
 #list to store embeddings to observe learning
 embeddings_list = list()
 
-class BreakIt(Exception): pass
+class done_learning(Exception): pass
 
 try:
   for i in range(max_training_updates):
@@ -296,35 +296,15 @@ try:
           log.write('perplexity: %.3f' % np.mean(train_res_perplexity[-100:])+ "\n\n")
           log.close()
 
-
       if (i+1) % 1000 == 0:
           torch.save(vae, output_file + ".pt")
-
-          embeddings_list.append(pd.DataFrame(embeddings).astype("float"))
-          
-          train_res_recon_error_smooth = savgol_filter(train_res_recon_error[100:], 201, 7)
-          train_res_perplexity_smooth = savgol_filter(train_res_perplexity[100:], 201 , 7)
-
-          f = plt.figure(figsize=(16,8))
-          ax = f.add_subplot(1,2,1)
-          ax.plot(train_res_recon_error_smooth)
-          ax.set_yscale('log')
-          ax.set_title('Smoothed NMSE.')
-          ax.set_xlabel('iteration')
-
-          ax = f.add_subplot(1,2,2)
-          ax.plot(train_res_perplexity_smooth)
-          ax.set_title('Smoothed Average codebook usage (perplexity).')
-          ax.set_xlabel('iteration')
-
-          f.savefig(output_file + "_loss.png")
       
       if (i+1) > 2000:
-          if np.mean(train_res_loss[-5000:-2500]) <= np.mean(train_res_loss[-2500:]):
+          if min(train_res_loss[-2000:-1000]) <= min(train_res_loss[-1000:]):
             torch.save(vae, output_file + ".pt")
                         
-            train_res_loss_smooth = savgol_filter(train_res_loss[100:], 201, 7)
-            train_res_perplexity_smooth = savgol_filter(train_res_perplexity[100:], 201 , 7)
+            train_res_loss_smooth = savgol_filter(train_res_loss[500:], 201, 7)
+            train_res_perplexity_smooth = savgol_filter(train_res_perplexity[500:], 201 , 7)
 
             f = plt.figure(figsize=(16,8))
             ax = f.add_subplot(1,2,1)
@@ -339,14 +319,13 @@ try:
             ax.set_xlabel('iteration')
 
             f.savefig(output_file + "_loss.png")
-            raise BreakIt
+            raise done_learning
 
-except BreakIt:
+except done_learning:
   pass
 
 log = open(output_file + "_log.txt", "a")
 log.close()
-
 
 ## TESTING ##
 
@@ -398,6 +377,16 @@ def gen_embed(fasta, model):
   
 model_file = output_file + ".pt"
 encodings = gen_embed(test_file, model_file)
+
+#split test fasta by encoding 
+os.mkdir(output_suffix + "/fastas")
+for e in np.unique(encodings["Encoding"].tolist()):
+    
+    input_seq_iterator = SeqIO.parse(test_file, "fasta")
+    entries = encodings[encodings["Encoding"] == e]["Entry"].tolist()
+        
+    subfasta = [record for record in input_seq_iterator if record.id in entries]
+    SeqIO.write(subfasta, output_suffix + "/fastas/subfasta" + str(e) + ".fa", "fasta")
 
 ## VALIDATION ##
 
