@@ -91,4 +91,6 @@ resultsdf = pd.DataFrame(results)
 resultsdf.to_csv(sys.argv[2].replace("results", "report"), sep='\t', header=False, index=False)
 
 uniqgodf['member count'] = len(uniqgodf.members)
+
 godf.to_csv(sys.argv[2].replace("results", "GO"), sep='\t', header=False, index=False)
+
