@@ -14,8 +14,6 @@ from functools import partial
 import matplotlib.pyplot as plt
 import pickle
 
-!rm -rf 'test'
-
 ## PARAMETERS & MODEL ##
 start_time = time.time()
 
@@ -33,8 +31,8 @@ learning_rate = 1e-5
 max_training_updates = 100000
 
 #inputs and outputs
-test_file = "scerevisiae_test.fa"
-train_file = "scerevisiae_test.fa"
+test_file = "data/mammalia/mammalia_test.fa"
+train_file = "data/mammalia/mammalia_test.fa"
 output_prefix = "test"
 
 #write log
@@ -124,7 +122,7 @@ class encoder(nn.Module):
 
 #vector quantizer
 class vector_quantizer(nn.Module):
-    def __init__(self, num_embeddings, embedding_dim, commitment_cost, decay, epsilon=1e-5):
+    def __init__(self, num_embeddings, embedding_dim, commitment_cost, decay, epsilon=1e-5, prefix=''):
         super(vector_quantizer, self).__init__()
         
         self._num_embeddings = num_embeddings
@@ -144,6 +142,8 @@ class vector_quantizer(nn.Module):
         self._decay = decay
         self._epsilon = epsilon
 
+        self._prefix = prefix
+
     def forward(self, inputs):
         #convert inputs from BCL -> BLC
         inputs = inputs.permute(0, 2, 1).contiguous()
@@ -158,8 +158,12 @@ class vector_quantizer(nn.Module):
 
         #encoding
         encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
+
         encodings = torch.zeros(encoding_indices.shape[0], self._num_embeddings, device = inputs.device)
         encodings.scatter_(1, encoding_indices, 1)
+
+        indices_list = [str(item) for sublist in encoding_indices.tolist() for item in sublist]
+        indices_list = [self._prefix + '_' + sub for sub in indices_list]
         
         #quantize and unflatten
         quantized = torch.matmul(encodings, self._embedding.weight).view(input_shape)        
@@ -190,7 +194,7 @@ class vector_quantizer(nn.Module):
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
         
         #convert quantized from BLC -> BCL #clean this
-        return quantized.permute(0,2,1).contiguous(), loss, perplexity, self._embedding.weight.data, encoding_indices
+        return quantized.permute(0,2,1).contiguous(), loss, perplexity, self._embedding.weight.data, indices_list
 
 #decoder 
 class decoder(nn.Module):
@@ -235,7 +239,7 @@ class model(nn.Module):
         
     def forward(self, x):
         encoded = self._encoder(x)
-        quantized, loss, perplexity, encodings, embeddings = self._vq(encoded)
+        quantized, loss, perplexity, embeddings, encodings = self._vq(encoded)
         x_recon = self._decoder(quantized)
             
         return loss, x_recon, perplexity, quantized, encoded, embeddings, encodings
@@ -259,8 +263,9 @@ finished_entries = []
 finished_encodings = []
 model_dict = {}
 
-def train(input, prefix='head', finished_entries=finished_entries, finished_encodings=finished_encodings):
+def train(input, prefix='', finished_entries=finished_entries, finished_encodings=finished_encodings):
 
+  vae._vq._prefix = prefix
   vae.train()
 
   train_res_loss = []
@@ -301,24 +306,23 @@ def train(input, prefix='head', finished_entries=finished_entries, finished_enco
           log.write('perplexity: %.3f' % np.mean(train_res_perplexity[-100:])+ "\n\n")
           log.close()
 
-      if (i+1) % 1000 == 0:
+      if (i+1) % 200 == 0:
           if perplexity.item() == 1:
             finished_fastas.append(input)
             finished_entries += [fasta.id for fasta in input]
-            prefix = str(int(prefix) + 1)
             print(prefix)
             finished_encodings += [prefix] * len(input)
             return 
       
-      if (i+1) > 1000:
-          if np.mean(train_res_loss[-1000:-500]) <= np.mean(train_res_loss[-500:]):
+      if (i+1) > 200:
+          if np.mean(train_res_loss[-200:-100]) <= np.mean(train_res_loss[-100:]):
             torch.save(vae, output_prefix + '/models/' + prefix + ".pt")
             model_dict[prefix] = vae
             with open('filename.pickle', 'wb') as handle:
               pickle.dump(model_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-            train_res_loss_smooth = savgol_filter(train_res_loss, 201, 7)
-            train_res_perplexity_smooth = savgol_filter(train_res_perplexity, 201 , 7)
+            train_res_loss_smooth = savgol_filter(train_res_loss, 51, 7)
+            train_res_perplexity_smooth = savgol_filter(train_res_perplexity, 51 , 7)
 
             f = plt.figure(figsize=(16,8))
             ax = f.add_subplot(1,2,1)
@@ -335,19 +339,17 @@ def train(input, prefix='head', finished_entries=finished_entries, finished_enco
             f.savefig(output_prefix + '/models/' + prefix + '.png')
             return vae
 
-## TESTING ##
-n = 0
-n_list = []
 
+## TESTING ##
 #os.mkdir(output_prefix + "/fastas")
 
 #get encoding for each sequence in test fasta
-def gen_embed(fasta, model, n=n, n_list=n_list):
+def gen_embed(fasta, model, batch_size):
 
   if model is None:
     return None
 
-  batch_size = 1
+  #batch_size = 10
   
   log = open(output_file + "_log.txt", "w")
   log.write("BEGIN TESTING " + time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n\n")
@@ -364,70 +366,74 @@ def gen_embed(fasta, model, n=n, n_list=n_list):
 
   for i, batch in enumerate(validation_loader):
 
-      validation_id = validation_data[i]['id']
+      validation_id = batch['id']
 
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
+
+
       vq_output_eval = model._encoder(validation_seqs)
-      valid_quantize, loss, perplexity, encodings, embeddings = model._vq(vq_output_eval)
+      valid_quantize, loss, perplexity, embeddings, encodings = model._vq(vq_output_eval)
 
-      encoding = int(embeddings.detach().cpu().numpy().flatten())
-      embeds = valid_quantize.view(batch_size, -1).detach().cpu().numpy().flatten()
+      embeds = valid_quantize.view(len(validation_id), -1).detach().cpu().numpy()
 
-      output.append([validation_id, encoding] + list(embeds))
+      output.append(np.column_stack([validation_id, encodings, embeds]))
       
       if i == 0:
         dims = []
-        for i in range(len(embeds)):
+        for i in range(len(embeds[0])):
           dims.append("Dim_" + str(i))
           header = ['Entry', 'Encoding'] + dims
 
-      if (i+1) % 10000 == 0:
+      if (i+1) % 1000 == 0:
         log = open(output_file + "_log.txt", "a")
         log.write(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n")
         log.write("%d sequences processed" % (i+1*batch_size)+ "\n\n")
     
+
   #return pd.DataFrame(output, columns=header)
-  df = pd.DataFrame(output, columns=header)
+  df = pd.DataFrame(np.concatenate(output), columns=header)
   df = df.sort_values(by='Encoding').reset_index(drop=True)
-
-  n += 1
-  print(n)
-  c = df.Encoding[0]
-  n_list.append(n)
-  for e in df.Encoding[1:]:
-    if e == c:
-        n_list.append(n)
-    else:
-        c = e
-        n += 1
-        print(n)
-        n_list.append(n)
-
-  df.Encoding = n_list[-len(df.Encoding):]
-  #need to create a translation dictionary
 
   out = {}
 
-  for e in np.unique(df["Encoding"].tolist()):
-    input_seq_iterator = SeqIO.parse(test_file, "fasta")
+  #return df
+
+  for e in set(df["Encoding"]):
+    print(e)
+    #input_seq_iterator = SeqIO.parse(fasta, "fasta")
     entries = df[df["Encoding"] == e]["Entry"].tolist()
-    subfasta = [record for record in input_seq_iterator if record.id in entries]
+    subfasta = [record for record in fasta if record.id in entries]
     out[str(e)] = subfasta
     #SeqIO.write(subfasta, output_prefix + "/fastas/" + str(e) + ".fa", "fasta")
 
-  return out, n
+  return out
 
 #model_file = output_file + ".pt"
 #encodings = gen_embed(test_file, model_file)
 
-def recur(top_file, prefix='head', n=n):
-  out = gen_embed(top_file, train(top_file, prefix=prefix), n=n)
+from string import ascii_lowercase
+import itertools
+
+def iter_strings():
+    for size in itertools.count(1):
+        for s in itertools.product(ascii_lowercase, repeat=size):
+            yield "".join(s)
+
+iter_string = iter_strings()
+
+def recur(top_file):
+  prefix = next(iter_string)
+  out = gen_embed(top_file, train(top_file, prefix=prefix), batch_size=100)
   if out is not None:
-    for k, v in out[0].items():
-      recur(v, k, n=out[1])
+    for v in out.values():
+      recur(v)
 
 recur(training_fasta)
 
 output_df = pd.DataFrame({'Entry':finished_entries, 'Encoding':finished_encodings})
-output_df.to_csv("output_df.txt", sep='\t', header=False, index=False)
+output_df.to_csv(output_prefix + "_df.txt", sep='\t', header=False, index=False)
+
+import pickle
+with open(output_prefix + '.pickle', 'wb') as handle:
+    pickle.dump(model_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
