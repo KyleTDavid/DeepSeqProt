@@ -432,8 +432,8 @@ def recur(top_file):
 recur(training_fasta)
 
 output_df = pd.DataFrame({'Entry':finished_entries, 'Encoding':finished_encodings})
-output_df.to_csv(output_prefix + "_df.txt", sep='\t', header=False, index=False)
+output_df.to_csv(output_file + "_df.txt", sep='\t', header=False, index=False)
 
 import pickle
-with open(output_prefix + '.pickle', 'wb') as handle:
+with open(output_file + '.pickle', 'wb') as handle:
     pickle.dump(model_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
