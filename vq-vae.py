@@ -22,7 +22,7 @@ arch = [2000, 1500, 1000, 500, 1]
 
 #vector quantizer        
 num_embeddings = 1000
-commitment_cost = 0.1
+commitment_cost = 0.99
 decay = 0.9
 
 #training
@@ -37,7 +37,7 @@ max_training_updates = 100000
 
 test_file = 'data/mammalia/mammalia_test.fa'
 train_file = 'data/mammalia/mammalia_train.fa'
-output_suffix = 'mammalia_short500c'
+output_suffix = 'mammalia_0.99commit'
 
 #write log
 os.mkdir(output_suffix)
