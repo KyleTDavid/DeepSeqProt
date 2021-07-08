@@ -6,7 +6,6 @@ import torch.nn as nn
 import numpy as np
 import pandas as pd
 import sys
-!pip install biopython
 from Bio import SeqIO
 from torch.utils.data import Dataset, DataLoader
 from scipy.interpolate import interp1d
@@ -424,7 +423,6 @@ results.append(["adjusted mutual information",
 
 #run gene ontology enrichment analysis
 # Get http://geneontology.org/ontology/go-basic.obo
-!pip install goatools
 
 from goatools.base import download_go_basic_obo
 obo_fname = download_go_basic_obo()
