@@ -398,7 +398,7 @@ coords.insert(loc=0, column='Encoding', value=coords.index)
 coords.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
 
 #incorporate uniprot info
-uniprot_ref = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
+uniprot_ref = pd.read_csv("uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
 uniprot_df = encodings.iloc[:, 0:2].merge(uniprot_ref)
 uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
 results = []
@@ -414,7 +414,7 @@ group = fams.groupby('Protein families')['Encoding']
 
 #percentage of complete families (all members have the same encoding)
 com = group.nunique()
-#results.append(["complete families",(len(com[com==True]) / len(com))])
+results.append(["complete families",(len(com[com==True]) / len(com))])
 
 #family completeness (largest number of members that share a cluster / family size)
 results.append(["family completeness",
@@ -467,19 +467,20 @@ godf['unique?'] = ~godf['name'].duplicated(keep=False)
 godf['member_count'] = godf.members.apply (lambda x: len(x))
 godf['representation'] = godf.apply (lambda row: row.member_count / int(np.unique(uniprot_df[uniprot_df.Encoding==row.encoding]['n'])), axis=1)
 
+godf_sig = godf[godf.p <= 0.01]
+
 #what % of encodings have at least one significant GO?
 results.append(["good categories",
-                (len(set(godf.encoding)) / len(set(uniprot_df.Encoding)))])
+                (len(set(godf_sig.encoding)) / len(set(uniprot_df.Encoding)))])
 
-members = [item for sublist in godf.members for item in sublist]
+members = [item for sublist in godf_sig.members for item in sublist]
 
 #how many members have at least one significant GO?
 results.append(["GO accuracy",
                 len(set(members)) / len(uniprot_df[uniprot_df["Gene ontology IDs"].notnull()].Entry)])
 
 #how many members have at least one significant unique GO?
-v = godf['name'].value_counts()
-uniqgodf = godf[godf['unique?']==True]
+uniqgodf = godf_sig[godf_sig['unique?']==True]
 
 uniqmembers = [item for sublist in uniqgodf.members for item in sublist]
 
