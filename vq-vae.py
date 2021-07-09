@@ -12,6 +12,7 @@ from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
 from math import ceil
 from functools import partial
+from sklearn.metrics.cluster import adjusted_mutual_info_score
 import matplotlib.pyplot as plt
 
 ## PARAMETERS & MODEL ##
@@ -35,9 +36,9 @@ max_training_updates = 100000
 #train_file = sys.argv[1]
 #output_suffix = sys.argv[1].split("/")[-1][:-3]
 
-test_file = 'mmusculus_proteome.fa'
-train_file = 'mmusculus_proteome.fa'
-output_suffix = 'mmusculus_selftrain'
+test_file = 'data/proteomes/mmusculus_proteome.fa'
+train_file = 'data/proteomes/mmusculus_proteome.fa'
+output_suffix = 'mmusculus_self'
 
 #write log
 os.mkdir(output_suffix)
@@ -381,6 +382,9 @@ def gen_embed(fasta, model):
 
   return pd.DataFrame(output, columns=header)
 
+model_file = output_file + ".pt"
+encodings = gen_embed(test_file, model_file)
+
 ## VALIDATION ##
 
 #aggregate coordinates of each encoding for plotting
@@ -394,7 +398,7 @@ coords.insert(loc=0, column='Encoding', value=coords.index)
 coords.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
 
 #incorporate uniprot info
-uniprot_ref = pd.read_csv("uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
+uniprot_ref = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
 uniprot_df = encodings.iloc[:, 0:2].merge(uniprot_ref)
 uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
 results = []
@@ -419,7 +423,7 @@ results.append(["family completeness",
 #adjusted mutual information
 uniprot_notnull = uniprot_df[uniprot_df['Protein families'].notnull()]
 results.append(["adjusted mutual information",
-                adjusted_mutual_info_score(uniprot_notnull['Protein families'], uniprot_notnull['Encoding'])]
+                adjusted_mutual_info_score(uniprot_notnull['Protein families'], uniprot_notnull['Encoding'])])
 
 #run gene ontology enrichment analysis
 # Get http://geneontology.org/ontology/go-basic.obo
