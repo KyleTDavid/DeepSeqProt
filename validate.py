@@ -9,7 +9,7 @@ uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
 
 results = []
 
-results.append(["# of categories", len(set(df.Encoding))])
+results.append(["# of categories", len(set(uniprot_df.Encoding))])
 
 #only look at protein families with at least 2 members, group by family
 v = uniprot_df['Protein families'].value_counts()
