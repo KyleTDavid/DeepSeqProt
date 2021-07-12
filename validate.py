@@ -4,8 +4,8 @@ import sys
 uniprot_ref = pd.read_csv(sys.argv[1], sep='\t')
 results = pd.read_csv(sys.argv[2], sep ='\t', skiprows=(0), names=['Entry', 'Encoding'])
 
-df = results.iloc[:, 0:2].merge(uniprot_ref)
-df['n'] = df.groupby('Encoding')['Encoding'].transform('count')
+uniprot_df = results.iloc[:, 0:2].merge(uniprot_ref)
+uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
 
 results = []
 
