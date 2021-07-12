@@ -1,5 +1,6 @@
 import pandas as pd
 import sys
+from sklearn.metrics.cluster import adjusted_mutual_info_score
 
 uniprot_ref = pd.read_csv(sys.argv[1], sep='\t')
 results = pd.read_csv(sys.argv[2], sep ='\t', skiprows=(0), names=['Entry', 'Encoding'])
