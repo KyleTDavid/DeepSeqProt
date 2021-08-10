@@ -281,6 +281,9 @@ def train(train_file):
   optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, amsgrad=False)
 
   vae.train()
+  
+  train_res_loss = []
+  train_res_embedding_usage = []
 
   for i in range(max_training_updates):
       batch = next(iter(training_loader))
@@ -295,6 +298,9 @@ def train(train_file):
       loss.backward()
 
       optimizer.step()
+
+      train_res_loss.append(loss.item())
+      train_res_embedding_usage.append(embedding_usage)
 
       if (i+1) % 100 == 0:
           log = open(output_file + "_log.txt", "a")
@@ -322,7 +328,7 @@ if os.path.splitext(train_file)[-1] in ['.fasta','.fa','.fna','.faa','.frn','.fn
   
 ## TESTING ##
 def test(fasta, model):
-  batch_size = 1
+  batch_size = 100
 
   model = torch.load(model, map_location=device)
   model.eval()
@@ -335,21 +341,22 @@ def test(fasta, model):
 
   for i, batch in enumerate(validation_loader):
 
-      validation_id = validation_data[i]['id']
+      validation_id = batch['id']
 
       validation_seqs = batch['seq']
       validation_seqs = validation_seqs.to(device)
+      
       vq_output_eval = model._encoder(validation_seqs)
       valid_quantize, loss, embedding_usage, embeddings = model._vq(vq_output_eval)
 
-      encoding = int(embeddings.detach().cpu().numpy().flatten())
-      embeds = valid_quantize.view(batch_size, -1).detach().cpu().numpy().flatten()
+      encoding = embeddings.detach().cpu().numpy().flatten()
+      embeds = valid_quantize.view(len(encoding), -1).detach().cpu().numpy().squeeze()
 
-      output.append([validation_id, encoding] + list(embeds))
+      output.append(np.column_stack([validation_id, encoding, embeds]))
 
       if i == 0:
         dims = []
-        for i in range(len(embeds)):
+        for i in range(np.shape(embeds)[1]):
           dims.append("Dim_" + str(i))
           header = ['Entry', 'Encoding'] + dims
 
@@ -358,7 +365,7 @@ def test(fasta, model):
         log.write(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n")
         log.write("%d sequences processed" % (i+1*batch_size)+ "\n\n")
 
-  return pd.DataFrame(output, columns=header)
+  return pd.DataFrame(np.concatenate(output), columns=header)
 
 if os.path.splitext(train_file)[-1] in ['.fasta','.fa','.fna','.faa','.frn','.fnn','.fas','.pep','.cds']:
   model_file = output_file + ".pt"
