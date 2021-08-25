@@ -274,8 +274,11 @@ def train(train_file):
   #load training data and model
   data = fasta_data(train_file, arch[0])
   training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
-  data_var = 0.032 #average variance per sequence 
-  embedding_dim = 20 * arch[-1]
+  data_var = 0.032 #average variance per sequence
+  if use_conv:
+    embedding_dim = num_channels * arch[-1]
+  else:
+    embedding_dim = 20 * arch[-1]
   vae = model(arch, num_embeddings, embedding_dim, commitment_cost, decay)
   vae.to(device)
   optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, amsgrad=False)
