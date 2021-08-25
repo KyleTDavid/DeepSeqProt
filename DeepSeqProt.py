@@ -1,5 +1,3 @@
-##WRITE FILES!!!!!
-
 import os
 import time
 import torch
@@ -313,7 +311,7 @@ def train(train_file):
           log.write('embedding_usage: %.3f' % np.mean(train_res_embedding_usage[-100:])+ "\n\n")
           log.close()
 
-      if (i+1) % 1000 == 0:
+      if (i+1) % (1000/batch_size) == 0:
           torch.save(vae, output_file + ".pt")
 
       if (i+1) > 2000:
