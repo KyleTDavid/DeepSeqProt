@@ -227,7 +227,7 @@ class decoder(nn.Module):
         self.arch = arch[::-1]
 
         if use_conv:
-          self.deconv = nn.ConvTranspose1d(20,num_channels,1,1)
+          self.deconv = nn.ConvTranspose1d(num_channels,20,1,1)
 
         self.blocks = nn.ModuleList([
                       nn.Linear(self.arch[0], self.arch[1]),
