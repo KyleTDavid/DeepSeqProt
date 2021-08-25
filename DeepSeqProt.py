@@ -361,10 +361,10 @@ def test(fasta, model):
           dims.append("Dim_" + str(i))
           header = ['Entry', 'Encoding'] + dims
 
-      if (i+1) % (1000/batch_size) == 0:
+      if (i+1) % (1000 / batch_size) == 0:
         log = open(output_file + "_log.txt", "a")
         log.write(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n")
-        log.write("%d sequences processed" % (i+1*batch_size)+ "\n\n")
+        log.write("%d sequences processed" % ((i+1) * batch_size) + "\n\n")
 
   return pd.DataFrame(np.concatenate(output), columns=header)
 
