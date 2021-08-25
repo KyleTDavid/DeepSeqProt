@@ -392,3 +392,7 @@ for e in np.unique(coords["Encoding"].tolist()):
 
     subfasta = [record for record in input_seq_iterator if record.id in entries]
     SeqIO.write(subfasta, output_prefix + "/fastas/subfasta" + str(e) + ".fa", "fasta")
+    
+log = open(output_file + "_log.txt", "a")
+log.write(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time)) + "\n")
+log.write("DONE!")
