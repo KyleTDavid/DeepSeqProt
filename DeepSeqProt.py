@@ -210,8 +210,7 @@ class vector_quantizer(nn.Module):
             self._embedding.weight = nn.Parameter(self._ema_w / self._ema_cluster_size.unsqueeze(1))
         #loss
         e_latent_loss = nn.functional.mse_loss(quantized.detach(), inputs)
-        q_latent_loss = nn.functional.mse_loss(quantized, inputs.detach())
-        loss = q_latent_loss + self._commitment_cost * e_latent_loss
+        loss = self._commitment_cost * e_latent_loss
         quantized = inputs + (quantized - inputs).detach()
         embedding_usage = len(torch.unique(embedding_indices))        
         #convert quantized from BLC -> BCL 
