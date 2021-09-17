@@ -36,9 +36,9 @@ max_training_updates = 100000
 #train_file = sys.argv[1]
 #output_suffix = sys.argv[1].split("/")[-1][:-3]
 
-test_file = 'data/proteomes/mmusculus_proteome.fa'
-train_file = 'data/proteomes/mmusculus_proteome.fa'
-output_suffix = 'mmusculus_self'
+test_file = 'data/proteomes/scerevisiae_proteome.fa'
+train_file = 'data/proteomes/scerevisiae_proteome.fa'
+output_suffix = 'scerevisiae_selftrain_2D'
 
 #write log
 os.mkdir(output_suffix)
@@ -398,7 +398,7 @@ coords.insert(loc=0, column='Encoding', value=coords.index)
 coords.to_csv(output_file + "_coordinates.txt", sep='\t', index=False)
 
 #incorporate uniprot info
-uniprot_ref = pd.read_csv("uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
+uniprot_ref = pd.read_csv("data/uniprot_reference.txt", sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
 uniprot_df = encodings.iloc[:, 0:2].merge(uniprot_ref)
 uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
 results = []
