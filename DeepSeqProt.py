@@ -38,11 +38,11 @@ parser.add_argument("-o", "--output", type=str, help="output prefix [required]")
 parser.add_argument("-t", "--training", type=str, help="either a fasta file used to train the model or pre-trained pytorch model file [required]")
 parser.add_argument("-e", "--encoder", type=int, nargs='+', help="list of integers representing the length and width of the encoder architecture [2000, 1500, 1000, 500, 1]")
 parser.add_argument("-n", "--num_embeddings", type=int, help="number of discrete embeddings to use in the vector quantized latent space [1000]")
-parser.add_argument("-c", "--commitment", type=int, help="commitment cost [10]")
-parser.add_argument("-d", "--decay", type=int, help="decay [0.9]")
+parser.add_argument("-c", "--commitment", type=float, help="commitment cost beta [10]")
+parser.add_argument("-d", "--decay", type=float, help="decay [0.9]")
 parser.add_argument("-a", "--num_channels", type=int, help="if a different number of channels are desired for the latent space (for example 2 for plotting purposes) this parameter introduces a simple convolutional layer to transform the number of default channels (20) into -a channels")
 parser.add_argument("-b", "--batch", type=int, help="batch size [32]")
-parser.add_argument("-l", "--learning", type=int, help="learning rate [1e-5]")
+parser.add_argument("-l", "--learning", type=float, help="learning rate [1e-5]")
 parser.add_argument("-m", "--max", type=int, help="maximum number of training updates [100000]")
 args = parser.parse_args()
 
@@ -271,7 +271,6 @@ def train(train_file):
   #load training data and model
   data = fasta_data(train_file, arch[0])
   training_loader = DataLoader(data, batch_size = batch_size, shuffle = True)
-  data_var = 0.032 #average variance per sequence
   if use_conv:
     embedding_dim = num_channels * arch[-1]
   else:
@@ -293,7 +292,7 @@ def train(train_file):
       optimizer.zero_grad()
 
       batch_recon, vq_loss, embedding_usage, embeddings = vae(batch_data)
-      recon_error = nn.functional.mse_loss(batch_recon, batch_data) / data_var
+      recon_error = nn.functional.mse_loss(batch_recon, batch_data)/torch.var(batch_data) 
       loss = recon_error + vq_loss
       loss.backward()
 
