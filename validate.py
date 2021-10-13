@@ -1,14 +1,28 @@
 import pandas as pd
-import sys
+import numpy as np
+import argparse
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 
-uniprot_ref = pd.read_csv(sys.argv[1], sep='\t')
-results = pd.read_csv(sys.argv[2], sep ='\t', skiprows=(0), names=['Entry', 'Encoding'])
+#command line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input", type=str, help="input _coordinates output .txt file")
+parser.add_argument("-r", "--reference", type=str, help="reference uniprot .txt file")
+args = parser.parse_args()
 
-uniprot_df = results.iloc[:, 0:2].merge(uniprot_ref)
+#required arguments
+input = args.input
+ref = args.reference
+
+## VALIDATION ##
+encodings = pd.read_csv(input,  delimiter='\t')
+
+#incorporate uniprot info
+uniprot_ref = pd.read_csv(ref, sep='\t', names = ['Entry', 'Organism', 'Protein families', 'Gene ontology IDs'])
+uniprot_df = encodings.iloc[:, 0:2].merge(uniprot_ref)
 uniprot_df['n'] = uniprot_df.groupby('Encoding')['Encoding'].transform('count')
-
 results = []
+
+#uniprot_df.to_csv(output_file + "_clusters.txt", sep='\t', header=False, index=False)
 
 results.append(["# of categories", len(set(uniprot_df.Encoding))])
 
@@ -32,7 +46,6 @@ results.append(["adjusted mutual information",
 
 #run gene ontology enrichment analysis
 # Get http://geneontology.org/ontology/go-basic.obo
-
 from goatools.base import download_go_basic_obo
 obo_fname = download_go_basic_obo()
 
@@ -92,10 +105,8 @@ uniqmembers = [item for sublist in uniqgodf.members for item in sublist]
 results.append(["unique GO accuracy",
                 len(set(uniqmembers)) / len(uniprot_df[uniprot_df["Gene ontology IDs"].notnull()].Entry)])
 
+godf.drop(['members'], axis=1).to_csv(input.split('_coordinates.txt')[0] + "_GO.txt", sep='\t', header=True, index=False)
+
 resultsdf = pd.DataFrame(results)
-resultsdf.to_csv(sys.argv[2].replace("results", "report"), sep='\t', header=False, index=False)
-
-uniqgodf['member count'] = len(uniqgodf.members)
-
-godf.to_csv(sys.argv[2].replace("results", "GO"), sep='\t', header=False, index=False)
+resultsdf.to_csv(input.split('_coordinates.txt')[0] + "_report.txt", sep='\t', header=False, index=False)
 
