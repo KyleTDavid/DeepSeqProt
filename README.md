@@ -60,7 +60,7 @@ Will run each clustering algorithm used during development to benchmark DeepSeqP
 > python validate.py -i [coordinates file] -r [reference table]
 ```
 Calculates several summary statistics from a `*_coordinates.txt` file generated either by `DeepSeqProt.py` or `run_benchmarks.sh`. Requires a tab-delimited reference table in the format:
-header | organism | protein family | and gene ontology IDs 
+Entry | Organism | Protein families | Gene ontology IDs 
  --- | --- | --- | --- 
  
 for each sequence in `*_coordinates.txt`. We recommend using the Uniprot database for this purpose, an example table can be found [here](https://www.uniprot.org/uniprot/?query=amphipod&format=tab&limit=10&columns=id,organism,families,go-id&sort=score). In addition to the libraries used by DeepSeqProt `validate.py` also requires the nonstandard Python libraries [`scikit-learn`](https://scikit-learn.org/stable/) and [`goatools`](https://github.com/tanghaibao/goatools)
