@@ -10,7 +10,7 @@ Nonstandard Python Libraries:
 - [`pandas`](https://pandas.pydata.org/)
 - [`Biopython`](https://biopython.org/)
 
-These can be installed by running `pip install -r requirements.txt` or `conda install --file requirements.txt`
+These can be installed by running `conda install --file requirements.txt`
 
 ---
 ### USAGE
