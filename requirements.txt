@@ -1,0 +1,4 @@
+biopython
+pytorch
+pandas
+numpy
