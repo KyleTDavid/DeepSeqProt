@@ -23,7 +23,7 @@ arch = [2000, 1500, 1000, 500, 1]
 
 #vector quantizer
 num_embeddings = 1000
-commitment_cost = 10
+commitment_cost = 0.1
 decay = 0.9
 
 #training
@@ -38,7 +38,7 @@ parser.add_argument("-o", "--output", type=str, help="output prefix [required]")
 parser.add_argument("-t", "--training", type=str, help="either a fasta file used to train the model or pre-trained pytorch model file [required]")
 parser.add_argument("-e", "--encoder", type=int, nargs='+', help="list of integers representing the length and width of the encoder architecture [2000, 1500, 1000, 500, 1]")
 parser.add_argument("-n", "--num_embeddings", type=int, help="number of discrete embeddings to use in the vector quantized latent space [1000]")
-parser.add_argument("-c", "--commitment", type=float, help="commitment cost beta [10]")
+parser.add_argument("-c", "--commitment", type=float, help="commitment cost beta [0.1]")
 parser.add_argument("-d", "--decay", type=float, help="decay [0.9]")
 parser.add_argument("-a", "--num_channels", type=int, help="if a different number of channels are desired for the latent space (for example 2 for plotting purposes) this parameter introduces a simple convolutional layer to transform the number of default channels (20) into -a channels")
 parser.add_argument("-b", "--batch", type=int, help="batch size [32]")
@@ -210,7 +210,8 @@ class vector_quantizer(nn.Module):
             self._embedding.weight = nn.Parameter(self._ema_w / self._ema_cluster_size.unsqueeze(1))
         #loss
         e_latent_loss = nn.functional.mse_loss(quantized.detach(), inputs)
-        loss = self._commitment_cost * e_latent_loss
+        q_latent_loss = nn.functional.mse_loss(quantized, inputs.detach())
+        loss = q_latent_loss + self._commitment_cost * e_latent_loss
         quantized = inputs + (quantized - inputs).detach()
         embedding_usage = len(torch.unique(embedding_indices))        
         #convert quantized from BLC -> BCL 
@@ -293,6 +294,7 @@ def train(train_file):
 
       batch_recon, vq_loss, embedding_usage, embeddings = vae(batch_data)
       recon_error = nn.functional.mse_loss(batch_recon, batch_data)/torch.var(batch_data) 
+      print(torch.var(batch_data))
       loss = recon_error + vq_loss
       loss.backward()
 
