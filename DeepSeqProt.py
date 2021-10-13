@@ -10,7 +10,6 @@ import argparse
 from Bio import SeqIO
 from torch.utils.data import Dataset, DataLoader
 from scipy.interpolate import interp1d
-from scipy.signal import savgol_filter
 from sklearn.metrics.cluster import adjusted_mutual_info_score
 
 
