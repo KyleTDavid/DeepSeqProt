@@ -22,7 +22,7 @@ These can be installed by running `conda install --file requirements.txt`
 -o [string]             Name of the output directory and prefix of several output files [REQUIRED]
 -t [fasta | model file] Either a fasta file of sequences used to train the model or a previously trained model file [REQUIRED]
 -w [integer list]       List of integers representing the length and width of the encoder architecture [2000, 1500, 1000, 500, 1]
--n [integer]            Number of discerete embeddings used to populate latent space
+-n [integer]            Number of discerete embeddings used to populate latent space [1000]
 -a [integer]            Number of latent space dimensions, this paramater introduces a simple convolutional layer to transform the default 20 channels into 'a' channels prior to quantization
 -c [float]              Beta, hyperparameter used to weight commitment loss [0.001]
 -d [float]              Weight decay [0.9]
