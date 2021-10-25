@@ -22,12 +22,12 @@ arch = [2000, 1500, 1000, 500, 1]
 
 #vector quantizer
 num_embeddings = 1000
-commitment_cost = 0.1
+commitment_cost = 0.001
 decay = 0.9
 
 #training
 batch_size = 32
-learning_rate = 1e-5
+learning_rate = 1e-4
 max_training_updates = 100000
 
 #command line arguments
@@ -37,11 +37,11 @@ parser.add_argument("-o", "--output", type=str, help="output prefix [required]")
 parser.add_argument("-t", "--training", type=str, help="either a fasta file used to train the model or pre-trained pytorch model file [required]")
 parser.add_argument("-e", "--encoder", type=int, nargs='+', help="list of integers representing the length and width of the encoder architecture [2000, 1500, 1000, 500, 1]")
 parser.add_argument("-n", "--num_embeddings", type=int, help="number of discrete embeddings to use in the vector quantized latent space [1000]")
-parser.add_argument("-c", "--commitment", type=float, help="commitment cost beta [0.1]")
+parser.add_argument("-c", "--commitment", type=float, help="commitment cost beta [0.001]")
 parser.add_argument("-d", "--decay", type=float, help="decay [0.9]")
 parser.add_argument("-a", "--num_channels", type=int, help="if a different number of channels are desired for the latent space (for example 2 for plotting purposes) this parameter introduces a simple convolutional layer to transform the number of default channels (20) into -a channels")
 parser.add_argument("-b", "--batch", type=int, help="batch size [32]")
-parser.add_argument("-l", "--learning", type=float, help="learning rate [1e-5]")
+parser.add_argument("-l", "--learning", type=float, help="learning rate [1e-4]")
 parser.add_argument("-m", "--max", type=int, help="maximum number of training updates [100000]")
 args = parser.parse_args()
 
