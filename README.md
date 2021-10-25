@@ -24,10 +24,10 @@ These can be installed by running `conda install --file requirements.txt`
 -w [integer list]       List of integers representing the length and width of the encoder architecture [2000, 1500, 1000, 500, 1]
 -n [integer]            Number of discerete embeddings used to populate latent space
 -a [integer]            Number of latent space dimensions, this paramater introduces a simple convolutional layer to transform the default 20 channels into 'a' channels prior to quantization
--c [float]              Beta, hyperparameter used to weight commitment loss [0.1]
+-c [float]              Beta, hyperparameter used to weight commitment loss [0.001]
 -d [float]              Weight decay [0.9]
 -b [integer]            Batch size [32]
--l [float]              Learning rate [1e-5]
+-l [float]              Learning rate [1e-4]
 -m [float]              Maximum number of training updates [1e6]
 -h                      Print help
 ```
